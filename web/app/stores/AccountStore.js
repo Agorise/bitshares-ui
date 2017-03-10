@@ -2,6 +2,7 @@ import BaseStore from "./BaseStore";
 import Immutable from "immutable";
 import alt from "alt-instance";
 import AccountActions from "actions/AccountActions";
+import WalletDb from "stores/WalletDb";
 import iDB from "idb-instance";
 import PrivateKeyStore from "./PrivateKeyStore";
 import {ChainStore, ChainValidation, FetchChain} from "bitsharesjs/es";
@@ -29,6 +30,7 @@ class AccountStore extends BaseStore {
             onLinkAccount: AccountActions.linkAccount,
             onUnlinkAccount: AccountActions.unlinkAccount,
             onAccountSearch: AccountActions.accountSearch,
+            
             // onNewPrivateKeys: [ PrivateKeyActions.loadDbData, PrivateKeyActions.addKey ]
         });
         this._export(

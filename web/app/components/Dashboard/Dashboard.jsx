@@ -8,7 +8,7 @@ import utils from "common/utils";
 import { Apis } from "bitsharesjs-ws";
 var logo = require("assets/logo-ico-blue.png");
 import LoadingIndicator from "../LoadingIndicator";
-
+import WalletDb from "stores/WalletDb";
 class Dashboard extends React.Component {
 
     constructor() {
