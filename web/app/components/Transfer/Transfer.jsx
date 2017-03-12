@@ -18,8 +18,8 @@ class Transfer extends React.Component {
     constructor(props) {
         super(props);
         this.state = Transfer.getInitialState();
+        this.state.Transaction_Type = -1;
         let {query} = this.props.location;
-
         if(query.from) {
             this.state.from_name = query.from;
             ChainStore.getAccount(query.from);
@@ -73,6 +73,8 @@ class Transfer extends React.Component {
 
     fromChanged(from_name) {
         this.setState({from_name, error: null, propose: false, propose_account: ""});
+        let e = null;
+        this.Compute_Transaction_Type(e);
     }
 
     toChanged(to_name) {
@@ -122,13 +124,19 @@ class Transfer extends React.Component {
         this.setState({ propose_account });
     }
 
-    onSubmit(e) {
-        e.preventDefault();
+
+
+
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//Transaction types:
+    Execute_Normal_Transaction(e)
+    {
         this.setState({error: null});
         let asset = this.state.asset;
         let precision = utils.get_asset_precision(asset.get("precision"));
         let amount = this.state.amount.replace( /,/g, "" );
-
         AccountActions.transfer(
             this.state.from_account.get("id"),
             this.state.to_account.get("id"),
@@ -146,6 +154,70 @@ class Transfer extends React.Component {
             this.setState({error: msg});
         } );
     }
+    Execute_Stealth_Transaction(e)
+    {
+        //Todo
+    }
+    /*Execute_Stth_Transaction(e) * note this
+    {
+        //Todo
+    }
+    */
+    //~Transaction Types
+    Compute_Transaction_Type()
+    {
+        let normal_stealth_blind = -1;
+        let From_X = this.state.from_name;
+        let To_X = this.state.to_name;
+        if(From_X[0] !="@" && To_X[0] != "@")
+        {
+            this.setState({normal_stealth_blind: 0}); //Normal
+        }
+        if(From_X[0] == "@" || To_X == "@")
+        {
+            this.setstate({normal_stealth_blind: 1}); //Stealth
+        }
+        return normal_stealth_blind;
+    }
+    Execute_Transaction(e)
+    {
+        normal_stealth_blind = this.Compute_Transaction_Type();
+        switch(normal_stealth_blind)
+        {
+            case 0: // Normal.
+            {
+                this.Execute_Normal_Transaction(e);
+                break;
+            }
+            case 1: // Stealth.Blind
+            {
+                this.Execute_Stealth_Transaction(e);
+                break;
+            }
+            /*
+            case 2: // Todo.
+            {
+                //todo
+                break;
+            }
+            */
+            default:
+            {
+                console.log("Fatal error");
+                break;
+            }
+        }
+    }
+    onSubmit(e) {
+        e.preventDefault();
+        this.Execute_Transaction(e);
+    }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
 
     setNestedRef(ref) {
         this.nestedRef = ref;
@@ -275,7 +347,7 @@ class Transfer extends React.Component {
                         </div>
                         {/*  T O  */}
                         <div className="content-block">
-                            <AccountSelector
+                            <AccountSelector ref="xto"
                                 label="transfer.to"
                                 accountName={to_name}
                                 onChange={this.toChanged.bind(this)}
