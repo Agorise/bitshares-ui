@@ -14,7 +14,7 @@ import {ChainStore, PrivateKey, key, Aes, hash} from "bitsharesjs/es";
 import {Apis, ChainConfig} from "bitsharesjs-ws";
 import AddressIndex from "stores/AddressIndex";
 import Stealth_Account from "stealth/account";
-import Stealth_Contact from "stealth/contacts";
+import Stealth_Contact from "stealth/contact";
 let aes_private;
 // let transaction;
 
@@ -133,17 +133,25 @@ class WalletDb extends BaseStore {
                             tr.add_signer(private_key, pubkey_string);
                         }
                     });
-                }).then(()=> {
-                    if(broadcast) {
-                        if(this.confirm_transactions) {
+                }).then(()=> 
+                {
+                    if(broadcast) 
+                    {
+                        if(this.confirm_transactions) 
+                        {
                             TransactionConfirmActions.confirm(tr);
                             return Promise.resolve();
                         }
                         else
+                        {
                             return tr.broadcast();
+                        }
 
-                    } else
+                    } 
+                    else
+                    {
                         return tr.serialize();
+                    }
                 });
             });
         });

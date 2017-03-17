@@ -21,8 +21,8 @@ import utils from "common/utils";
 import {key} from "bitsharesjs/es";
 import StealthCheckBox from "components/Forms/StealthCheckBox";
 import Stealth_Account from "stealth/account";
-import Stealth_Contact from "stealth/contacts";
-import SDB from "stealth/db";
+import Stealth_Contact from "stealth/contact";
+import STransfer from "stealth/transfer";
 
 class CreateAccount extends React.Component {
     constructor() {
@@ -74,32 +74,8 @@ class CreateAccount extends React.Component {
             this.setState(state);
             this.stealthcheck(e);
         }
-        //tests
-        let DB = new SDB;
-        DB.LACC().then(function(result)
-        {
-            if(result != false)
-            {
-                DB.accounts = result;
-                let acc = DB.get_account("bla-01");
-                console.log("WOOT FOUND:"+acc.publickey);
-            }
-            else
-            {
-                throw new Error("Stealth->DB->load_accounts Failed");
-            }
-        });
-        DB.LCTC().then(function(result)
-        {
-            if(result != false)
-            {
-                DB.contacts = result;
-            }
-            else
-            {
-                throw new Error("Stealth->DB->load_contacts Failed");
-            }
-        });
+        //let STX = new STransfer();
+        //STX.To_Stealth();
     }
 
     onPasswordChange(e) {

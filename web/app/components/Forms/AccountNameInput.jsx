@@ -150,6 +150,10 @@ class AccountNameInput extends React.Component {
     onKeyDown(e) {
         if (this.props.onEnter && event.keyCode === 13) this.props.onEnter(e);
     }
+    onpubkeychange(e)
+    {
+        //todo valdiation with errors/warnings
+    }
     render() 
     {
         let trigger = false;
@@ -220,6 +224,7 @@ class AccountNameInput extends React.Component {
                             ref="input2"
                             autoComplete="off"
                             placeholder="Stealth Public Key here."
+                            onChange={this.onpubkeychange}
                         />
                     </section>
                     <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
