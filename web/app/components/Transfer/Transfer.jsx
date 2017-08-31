@@ -12,13 +12,15 @@ import TransactionConfirmStore from "stores/TransactionConfirmStore";
 import { RecentTransactions } from "../Account/RecentTransactions";
 import Immutable from "immutable";
 import {ChainStore} from "bitsharesjs/es";
-
+import TriSwitch from "stealth/tri-switch";
+import Stealth_DB from "stealth/db";
+import Stealth_Transfer from "stealth/transfer";
 class Transfer extends React.Component {
 
     constructor(props) {
         super(props);
         this.state = Transfer.getInitialState();
-        this.state.Transaction_Type = -1;
+        this.setState({Transaction_Type: -1});
         let {query} = this.props.location;
         if(query.from) {
             this.state.from_name = query.from;
@@ -73,8 +75,7 @@ class Transfer extends React.Component {
 
     fromChanged(from_name) {
         this.setState({from_name, error: null, propose: false, propose_account: ""});
-        let e = null;
-        this.Compute_Transaction_Type(e);
+        this.Compute_Transaction_Type();
     }
 
     toChanged(to_name) {
@@ -154,70 +155,63 @@ class Transfer extends React.Component {
             this.setState({error: msg});
         } );
     }
-    Execute_Stealth_Transaction(e)
+    Execute_Stealth_Transaction(e,Transaction_Type)
     {
-        //Todo
+        let DB = new Stealth_DB;
+        let From = this.state.from;
+        let To = this.state.to;
+        let Ammount = this.state.ammount;
+        DB.Initialize().then(function()
+        {
+            let Transfer = new Stealth_Transfer(from, to, asset, ammount);
+
+        }.bind(DB));
     }
-    /*Execute_Stth_Transaction(e) * note this
-    {
-        //Todo
-    }
-    */
-    //~Transaction Types
     Compute_Transaction_Type()
     {
-        let normal_stealth_blind = -1;
         let From_X = this.state.from_name;
         let To_X = this.state.to_name;
         if(From_X[0] !="@" && To_X[0] != "@")
         {
-            this.setState({normal_stealth_blind: 0}); //Normal
+            return 0;//normal
         }
         if(From_X[0] == "@" || To_X == "@")
         {
-            this.setstate({normal_stealth_blind: 1}); //Stealth
+            if(this.refs.NBS_SWITCH.state.selection == 0)
+            {
+                this.refs.NBS_SWITCH.handleChange();
+            }
+            return 1; //stealth
         }
-        return normal_stealth_blind;
+        return 0;
     }
-    Execute_Transaction(e)
+    Execute_Transaction(e,Transaction_Type)
     {
-        normal_stealth_blind = this.Compute_Transaction_Type();
+        let normal_stealth_blind = this.Compute_Transaction_Type();
         switch(normal_stealth_blind)
         {
             case 0: // Normal.
-            {
-                this.Execute_Normal_Transaction(e);
-                break;
-            }
+                {
+                    this.Execute_Normal_Transaction(e);
+                    break;
+                }
             case 1: // Stealth.Blind
-            {
-                this.Execute_Stealth_Transaction(e);
-                break;
-            }
-            /*
-            case 2: // Todo.
-            {
-                //todo
-                break;
-            }
-            */
+                {
+                    this.Execute_Stealth_Transaction(e,Transaction_Type);
+                    break;
+                }
             default:
-            {
-                console.log("Fatal error");
-                break;
-            }
+                {
+                    console.log("Fatal error");
+                    break;
+                }
         }
     }
+
     onSubmit(e) {
         e.preventDefault();
-        this.Execute_Transaction(e);
+        this.Execute_Transaction(e, this.refs.NBS_SWITCH.state.selection);
     }
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-
-
-
 
     setNestedRef(ref) {
         this.nestedRef = ref;
@@ -367,6 +361,14 @@ class Transfer extends React.Component {
                                 assets={asset_types}
                                 display_balance={balance}
                                 tabIndex={tabIndex++}
+                            />
+                        </div>
+                        {/*Transaction Type*/}
+                        <div className="content-block">
+                            <TriSwitch 
+                                ref="NBS_SWITCH"
+                                label="Normal Transaction"
+                                id="NBS_Button"
                             />
                         </div>
                         {/*  M E M O  */}

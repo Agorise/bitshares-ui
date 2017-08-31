@@ -68,7 +68,7 @@ class Stealth_Transfer
             let to_key = this.to.public_key;
             let secret = one_time_key.get_shared_secret(to_key);
             let child = hash.sha256(secret);
-            let nonce = hash.sha256(one_time_key);//get_secret()? wtf
+            let nonce = one_time_key.get_secret();//get_secret()? wtf
             let blind_factor = hash.sha256(child);
 
         }

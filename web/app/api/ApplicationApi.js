@@ -162,7 +162,6 @@ class ApplicationApi {
                 amount: { amount, asset_id: chain_asset.get("id") },
                 memo: memo_object
             });
-
             return tr.update_head_block().then(() => {
                 if( propose_account ) {
                     tr.add_type_operation("proposal_create", {

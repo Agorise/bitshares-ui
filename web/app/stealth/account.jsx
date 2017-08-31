@@ -26,7 +26,7 @@ class Stealth_Account
             let nbrainkey = key.suggest_brain_key(dictionary.en);
             this.brainkey = nbrainkey;
             let proc = PrivateKey.fromSeed( key.normalize_brainKey(this.brainkey) );
-            this.publickey = proc.toPublicKey().toString();;
+            this.publickey = proc.toPublicKey().toString();
             this.privatekey = proc.toWif();;
             this.account = account;
 

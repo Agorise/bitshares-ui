@@ -1,0 +1,8 @@
+Change Log:
+- Added three way functionality to Transfers
+	You can now actually specify if you want to send to normal blind or to stealth etc.
+- Background Connections In preparation for blinded & stealth transactions done.
+- Further Improved Stealth_DB for easier functionality
+- Connected Transfer to Stealth Components
+- Fixed an issue in account/contact creation where the public keys sometimes didn't get added.
+

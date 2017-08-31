@@ -22,7 +22,7 @@ import {key} from "bitsharesjs/es";
 import StealthCheckBox from "components/Forms/StealthCheckBox";
 import Stealth_Account from "stealth/account";
 import Stealth_Contact from "stealth/contact";
-import STransfer from "stealth/transfer";
+import Stealth_DB from "stealth/db";
 
 class CreateAccount extends React.Component {
     constructor() {
@@ -172,10 +172,24 @@ class CreateAccount extends React.Component {
         if(!this.state.createdstealth)
         {
             this.setState({createdstealth: true});
-            let ACC = new Stealth_Account();
-            let associated_account = this.refs.selected_account.state.selected;
-            ACC.new_account(label, associated_account);
-            WalletDb.create_new_stealth_account(ACC);
+            let DB = new Stealth_DB;
+            DB.associated_account = this.refs.selected_account.state.selected;
+            DB.label = label;
+            DB.load_accounts().then(function (result)
+            {
+                if(result !== Error)
+                {
+                    let ACC = new Stealth_Account();
+                    ACC.new_account(DB.label, DB.associated_account);
+                    DB.accounts = result;
+                    DB.create_account(ACC);
+                }
+                else
+                {
+                    console.log(result);
+                }
+            });
+
         }
     }
     stealthcheck(e)

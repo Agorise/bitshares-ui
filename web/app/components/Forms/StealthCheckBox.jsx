@@ -57,7 +57,7 @@ class StealthCheckBox extends React.Component {
     render()
     {
         return(
-            <div className="switch" onClick={this.handleChange} style={{}}>
+            <div className="switch" onClick={this.handleChange}>
                 <input
                     type="checkbox"
                     ref="stealthcheckinput"
