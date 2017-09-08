@@ -21,7 +21,7 @@ import TransactionConfirm from "./components/Blockchain/TransactionConfirm";
 import WalletUnlockModal from "./components/Wallet/WalletUnlockModal";
 import BrowserSupportModal from "./components/Modal/BrowserSupportModal";
 import Footer from "./components/Layout/Footer";
-
+import WalletDb from "stores/WalletDb";
 class App extends React.Component {
 
     constructor() {
@@ -258,6 +258,7 @@ class Root extends React.Component {
     }
 
     render() {
+        WalletDb.create_stealth_wallet;
         return <RootIntl {...this.props} />;
     }
 }
