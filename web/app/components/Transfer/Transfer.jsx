@@ -16,7 +16,9 @@ import {connect} from "alt-react";
 import { checkFeeStatusAsync, checkBalance } from "common/trxHelper";
 import { debounce } from "lodash";
 import { Asset } from "common/MarketClasses";
-
+import TriSwitch from "stealth/tri-switch";
+import Stealth_DB from "stealth/db";
+import Stealth_Transfer from "stealth/transfer";
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -63,7 +65,8 @@ class Transfer extends React.Component {
             feeAsset: null,
             fee_asset_id: "1.3.0",
             feeAmount: new Asset({amount: 0}),
-            feeStatus: {}
+            feeStatus: {},
+            Transaction_Type: -1
         };
 
     };
@@ -229,10 +232,8 @@ class Transfer extends React.Component {
     onProposeAccount(propose_account) {
         this.setState({ propose_account });
     }
-
-    onSubmit(e) {
-        e.preventDefault();
-        this.setState({error: null});
+    Execute_Normal_Transaction()
+    {
         const {asset, amount} = this.state;
         const sendAmount = new Asset({real: amount, asset_id: asset.get("id"), precision: asset.get("precision")});
 
@@ -252,6 +253,64 @@ class Transfer extends React.Component {
             console.log( "error: ", e, msg);
             this.setState({error: msg});
         } );
+    }
+    Execute_Stealth_Transaction(e,Transaction_Type)
+    {
+        let DB = new Stealth_DB;
+        let From = this.state.from;
+        let To = this.state.to;
+        let Asset = this.state.asset;
+        let Ammount = this.state.ammount;
+        DB.Initialize().then(function()
+        {
+            let Transfer = new Stealth_Transfer(From, To, Asset, Ammount);
+
+        }.bind(DB).catch(function(result){console.log(result);}));
+    }
+    Compute_Transaction_Type()
+    {
+        let From_X = this.state.from_name;
+        let To_X = this.state.to_name;
+        if(From_X[0] !="@" && To_X[0] != "@")
+        {
+            return 0;//normal
+        }
+        if(From_X[0] == "@" || To_X == "@")
+        {
+            if(this.refs.NBS_SWITCH.state.selection == 0)
+            {
+                this.refs.NBS_SWITCH.handleChange();
+            }
+            return 1; //stealth
+        }
+        return 0;
+    }
+    Execute_Transaction(e,Transaction_Type)
+    {
+        let normal_stealth_blind = this.Compute_Transaction_Type();
+        switch(normal_stealth_blind)
+        {
+            case 0: // Normal.
+                {
+                    this.Execute_Normal_Transaction(e);
+                    break;
+                }
+            case 1: // Stealth.Blind
+                {
+                    this.Execute_Stealth_Transaction(e,Transaction_Type);
+                    break;
+                }
+            default:
+                {
+                    console.log("Fatal error");
+                    break;
+                }
+        }
+    }
+
+    onSubmit(e) {
+        e.preventDefault();
+        this.setState({error: null});
     }
 
     setNestedRef(ref) {
@@ -403,6 +462,15 @@ class Transfer extends React.Component {
                                 tabIndex={tabIndex++}
                             />
                             {this.state.balanceError ? <p className="has-error no-margin" style={{paddingTop: 10}}><Translate content="transfer.errors.insufficient" /></p>:null}
+                        </div>
+                        {/*Transaction Type*/}
+                        <div className="content-block">
+                            <TriSwitch 
+                                ref="NBS_SWITCH"
+                                label="Normal Transaction"
+                                id="NBS_Button"
+                                tabindex={tabIndex++}
+                            />
                         </div>
                         {/*  M E M O  */}
                         <div className="content-block transfer-input">

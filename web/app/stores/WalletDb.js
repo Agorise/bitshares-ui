@@ -62,9 +62,18 @@ class WalletDb extends BaseStore {
             console.error(e);
         }
     }
-
+    create_stealth_wallet()
+    {
+        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
+        db.transaction(function (tx) {
+            tx.executeSql("CREATE TABLE IF NOT EXISTS stealth_accounts (label unique, bkey, publickey, privatekey, account)");
+        });
+        db.transaction(function (tx) {
+            tx.executeSql("CREATE TABLE IF NOT EXISTS stealth_labels (label unique, pubkey)");
+        });
+    }
     getWallet() {
-        return this.state.wallet
+        return this.state.wallet;
     }
 
     onLock() {
@@ -77,7 +86,7 @@ class WalletDb extends BaseStore {
     }
 
     decryptTcomb_PrivateKey(private_key_tcomb) {
-        if( ! private_key_tcomb) return null
+        if( ! private_key_tcomb) return null;
         if( this.isLocked() ) throw new Error("wallet locked")
         if (_passwordKey && _passwordKey[private_key_tcomb.pubkey]) {
             return _passwordKey[private_key_tcomb.pubkey];
@@ -89,10 +98,10 @@ class WalletDb extends BaseStore {
     /** @return ecc/PrivateKey or null */
     getPrivateKey(public_key) {
         if (_passwordKey) return _passwordKey[public_key];
-        if(! public_key) return null
+        if(! public_key) return null;
         if(public_key.Q) public_key = public_key.toPublicKeyString()
         let private_key_tcomb = PrivateKeyStore.getTcomb_byPubkey(public_key)
-        if(! private_key_tcomb) return null
+        if(! private_key_tcomb) return null;
         return this.decryptTcomb_PrivateKey(private_key_tcomb)
     }
 
@@ -102,7 +111,7 @@ class WalletDb extends BaseStore {
         if(!passwordLogin && Apis.instance().chain_id !== this.state.wallet.chain_id)
             return Promise.reject("Mismatched chain_id; expecting " +
                 this.state.wallet.chain_id + ", but got " +
-                Apis.instance().chain_id)
+                Apis.instance().chain_id);
 
         return WalletUnlockActions.unlock().then( () => {
             AccountActions.tryToSetCurrentAccount();
@@ -117,12 +126,12 @@ class WalletDb extends BaseStore {
                     // potential keys.
                     let pubkeys = PrivateKeyStore.getPubkeys_having_PrivateKey(signer_pubkeys)
                     if( ! pubkeys.length)
-                        throw new Error("Missing signing key")
+                        throw new Error("Missing signing key");
 
                     for(let pubkey_string of pubkeys) {
                         let private_key = this.getPrivateKey(pubkey_string)
-                        tr.add_signer(private_key, pubkey_string)
-                        signer_pubkeys_added[pubkey_string] = true
+                        tr.add_signer(private_key, pubkey_string);
+                        signer_pubkeys_added[pubkey_string] = true;
                     }
                 }
 
