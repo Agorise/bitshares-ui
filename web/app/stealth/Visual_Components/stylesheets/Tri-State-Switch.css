@@ -1,0 +1,49 @@
+#tri-switch-background
+{
+    float: left;
+    background-color: rgb(204,204,204);
+    width: 60px;
+    height: 32px;
+    border-radius: 167px 167px 167px 167px;
+    -moz-border-radius: 167px 167px 167px 167px;
+    -webkit-border-radius: 167px 167px 167px 167px;
+    border: 0px solid #000000;
+    margin-right: 10px;
+
+}
+#tri-switch-circle
+{
+    background-color: rgb(255,255,255);
+    border-radius: 200px 200px 200px 200px;
+    -moz-border-radius: 200px 200px 200px 200px;
+    -webkit-border-radius: 200px 200px 200px 200px;
+    -webkit-box-shadow: inset 0px 0px 2px 2px rgba(0,0,0,0.45);
+    -moz-box-shadow: inset 0px 0px 2px 2px rgba(0,0,0,0.45);
+    box-shadow: inset 0px 0px 2px 2px rgba(0,0,0,0.45);
+    margin-left: 3px;
+    margin-top: 2px;
+    width: 27px;
+    height: 28px;
+}
+#tri-switch-text
+{
+    margin-top: -1.5px;
+    float: right;
+    width: fit-content;
+    height: fit-content;
+    opacity: 0.9;
+    color: rgb(255, 255, 255);
+}
+#tri-switch-text p
+{
+    font-size: 23px;
+    font-family: Verdana, Tahoma, sans-serif;
+    
+}
+#tri-switch-container
+{
+    margin-top: -13px;
+    width: fit-content;
+    height: 100%;
+    vertical-align: middle;
+}
