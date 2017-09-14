@@ -35,6 +35,7 @@ class AccountNameInput extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.onPubChange = this.onPubChange.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
     }
 
@@ -57,7 +58,25 @@ class AccountNameInput extends React.Component {
     setValue(value) {
         this.setState({value});
     }
-
+    getVisualValue()
+    {
+        return this.refs.input.value;
+    }
+    getVisualValue2()
+    {
+        if(this.refs.input2 !== undefined)
+        {
+            return this.refs.input2.value;
+        }
+    }
+    setVisual(valued)
+    {
+        this.refs.input.value = valued;
+    }
+    getPubkey()
+    {
+        return this.refs.input2.value;
+    }
     clear() {
         this.setState({ account_name: null, error: null, warning: null })
     }
@@ -92,7 +111,7 @@ class AccountNameInput extends React.Component {
             "Please enter valid account name" :
             ChainValidation.is_account_name_error(value)
 
-        this.state.warning = null
+        this.state.warning = null;
         if(this.props.cheapNameOnly) {
             if( ! this.state.error && ! ChainValidation.is_cheap_name( value ))
                 this.state.error = counterpart.translate("account.name_input.premium_name_faucet");
@@ -105,49 +124,131 @@ class AccountNameInput extends React.Component {
         if (this.props.accountShouldExist || this.props.accountShouldNotExist) AccountActions.accountSearch(value);
     }
 
-    handleChange(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        // Simplify the rules (prevent typing of invalid characters)
-        var account_name = e.target.value.toLowerCase()
-        account_name = account_name.match(/[a-z0-9\.-]+/)
-        account_name = account_name ? account_name[0] : null
-        this.setState({ account_name })
-        this.validateAccountName(account_name);
-
+    handleChange(e,override) 
+    {
+        if(override === null || override === undefined)
+        {
+            e.preventDefault();
+            e.stopPropagation();
+            // Simplify the rules (prevent typing of invalid characters)
+            var account_name = e.target.value.toLowerCase();
+            account_name = account_name.match(/[a-z0-9@\.-]+/);
+            account_name = account_name ? account_name[0] : null;
+            this.setState({ account_name });
+            this.validateAccountName(account_name);
+            this.setState({value: account_name});
+            this.render();
+            //Assoc/Pay
+            let Mimi = document.getElementById("AS-LABEL");
+            if(account_name != null)
+            {
+                if(account_name[0]=="@")
+                {
+                    Mimi.innerText="Associate with account:";
+                }
+                else
+                {
+                    Mimi.innerText="Pay with account:";
+                }
+            }
+            else
+            {
+                Mimi.innerText="Pay with account:";
+            }
+        }
+        else
+        {
+            console.log("Tick!");
+            this.forceUpdate();
+        }
     }
-
+    onPubChange()
+    {
+        console.log("WORKPUBCHANGE");
+        this.handleChange(null,true);
+    }
     onKeyDown(e) {
         if (this.props.onEnter && event.keyCode === 13) this.props.onEnter(e);
     }
 
-    render() {
+    render()
+    {
+        let trigger = false;
+        let account_name;
+        if(this.state.value)
+        {
+            account_name = this.state.value;
+        }
+        if(account_name!=null)
+        {
+            if(account_name[0] == "@")
+            {
+                trigger = true;
+            }
+        }
+        else
+        {
+            account_name = "";
+        }
         let error = this.getError() || "";
         let class_name = classNames("form-group", "account-name", {"has-error": false});
         let warning = this.state.warning;
-        // let {noLabel} = this.props;
-
-        return (
-            <div className={class_name}>
-                {/* {noLabel ? null : <label><Translate content="account.name" /></label>} */}
-                <section>
-                    <label className="left-label">{this.props.placeholder}</label>
-                    <input
-                        name="value"
-                        type="text"
-                        id={this.props.id}
-                        ref="input"
-                        autoComplete="off"
-                        placeholder={null}
-                        onChange={this.handleChange}
-                        onKeyDown={this.onKeyDown}
-                        value={this.state.account_name || this.props.initial_value}
-                    />
-                </section>
-                <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
-                <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
-            </div>
-        );
+        let {noLabel} = this.props;
+        if(trigger===false)
+        {
+            return (
+                <div className={class_name}>
+                    {noLabel ? null : <label><Translate content="account.name" /></label>}
+                    <section>
+                        <input
+                            name="value"
+                            type="text"
+                            id={this.props.id}
+                            ref="input"
+                            autoComplete="off"
+                            placeholder={this.props.placeholder}
+                            onChange={this.handleChange}
+                            onKeyDown={this.onKeyDown}
+                            value={this.state.account_name || this.props.initial_value}
+                        />
+                    </section>
+                    <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
+                    <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
+                </div>
+            );
+        }
+        else
+        {
+            return (
+                <div className={class_name}>
+                    {noLabel ? null : <label><Translate content="account.name" /></label>}
+                    <section>
+                        <input
+                            name="value"
+                            type="text"
+                            id={this.props.id}
+                            ref="input"
+                            autoComplete="off"
+                            placeholder={this.props.placeholder}
+                            onChange={this.handleChange}
+                            onKeyDown={this.onKeyDown}
+                            value={this.state.account_name || this.props.initial_value}
+                        />
+                        <input
+                            name="value"
+                            type="text"
+                            id="stealthpkey"
+                            ref="input2"
+                            autoComplete="off"
+                            placeholder="Stealth Public Key here."
+                            onChange={this.onPubChange}
+                        />
+                    </section>
+                    <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
+                    <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
+                </div>
+            );
+        }
     }
 }
 

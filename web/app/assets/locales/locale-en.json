@@ -1019,6 +1019,8 @@
     "account_create_wallet_text": "This password will be used to create a new BitShares wallet for you, which will only be stored locally in your browser. A BitShares wallet can contain multiple accounts and can be easily transferred between browsers and computers using a backup file.",
     "create_account_text": "The account name you choose needs to be unique, as it will be registered publicly on the blockchain and will be your identifer for any transactions you make.",
     "first_account_paid": "Since this is your first account, a faucet will pay the registration fee for you.",
+    "stealth_create_account_hint": "Or, you can create a Stealth account by inserting a '@' before the name you desire for your stealth account.",
+    "stealth_create_contact_hint": "To add a Stealth contact, Type '@' before the name of the contact you desire and in the newly appeared form paste the public key of your contact.",
     "not_first_account": "Since you already have an account, you will need to pay for this new account yourself. In order to do so, your account needs to have lifetime membership, which can be bought in the account page.",
     "must_be_ltm": "The fee paying account must be a lifetime member to perform that operation.",
     "backup_explain": "Clicking on the button below will generate a backup file with a .bin extension. This file is encrypted with your wallet password, and contains all the private keys for your accounts. It can be used to restore your wallet, or move it to a different computer/browser.",

@@ -60,6 +60,7 @@ class AccountSelector extends React.Component {
         if(value[0] === "#" && utils.is_object_id("1.2." + value.substring(1))) return "id";
         if(ChainValidation.is_account_name(value, true)) return "name";
         if(this.props.allowPubKey && PublicKey.fromPublicKeyString(value)) return "pubkey";
+        if(value[0] === "@") return "blind/stealth";
         return null;
     }
 
@@ -109,6 +110,10 @@ class AccountSelector extends React.Component {
             if(type === "name") lookup_display = "#" + this.props.account.get("id").substring(4);
             else if (type === "id") lookup_display = this.props.account.get("name");
         } else if (!error && this.props.accountName) error = counterpart.translate("account.errors.unknown");
+        else if(type=="stealth/blind")
+        {
+            lookup_display = "Stealth Account";
+        }
 
         let member_status = null;
         if (this.props.account)
