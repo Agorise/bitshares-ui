@@ -28,6 +28,9 @@ class CreateAccount extends React.Component {
     constructor() {
         super();
         this.state = {
+            add_stealth_contact: false,
+            StealthChecked: false,
+            createdstealth: false,
             validAccountName: false,
             accountName: "",
             validPassword: false,
