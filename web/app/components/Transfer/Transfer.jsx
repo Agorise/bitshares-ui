@@ -471,14 +471,13 @@ class Transfer extends React.Component {
                             {this.state.balanceError ? <p className="has-error no-margin" style={{paddingTop: 10}}><Translate content="transfer.errors.insufficient" /></p>:null}
                         </div>
                         {/*Transaction Type*/}
-                        <div className="content-block">
                             <TriSwitch 
                                 ref="NBS_SWITCH"
                                 label="Normal Transaction"
                                 id="NBS_Button"
+                                text={["Normal Transaction","Blinded Transaction","Stealth Transaction"]}
                                 tabindex={tabIndex++}
                             />
-                        </div>
                         {/*  M E M O  */}
                         <div className="content-block transfer-input">
                             {memo && memo.length ? <label className="right-label">{memo.length}</label> : null}

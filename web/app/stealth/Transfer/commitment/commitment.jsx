@@ -1,15 +1,20 @@
+var BigInt = require("bigi");
 class secp256k1_scalar_t
 {
     constructor()
     {
-        Uint32Array(8)
+        this.d = [];
+        for(var i=0;i<4;i++)
+        {
+            d[i] = new BigInt(4,16);
+        }
     }    
 }
 class secp256k1_gej_t
 {
     constructor()
     {
-
+        
     }
 }
 class secp256k1_fe_storage_t

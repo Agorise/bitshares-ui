@@ -3,16 +3,15 @@ import {PropTypes} from "react";
 class TriSwitch extends React.Component {
 
     static propTypes = {
-        onClick: PropTypes.func,
+        onChange: PropTypes.func,
         label: React.PropTypes.string.isRequired,
         cpx: React.PropTypes.array,
         color_state: React.PropTypes.array,
-        text: React.PropTypes.array
+        text: React.PropTypes.string
     };
     static defaultProps = {
         cpx: [3,16,30],
         color_state: [[204,204,204],[218,195,20],[186,15,0]],
-        text: []
     }
     constructor() {
         super();
@@ -21,6 +20,7 @@ class TriSwitch extends React.Component {
             cpos: 3,
             c: [204,204,204],
             intervaid: null,
+            text: ["Normal","Blinded","Stealth"]
         };     
         this.handleChange = this.handleChange.bind(this);
     }
@@ -80,7 +80,7 @@ class TriSwitch extends React.Component {
                 <div id="tri-switch-background" ref="Background" onClick={this.handleChange} style={{backgroundColor: "rgb(" + this.state.c[0]+","+this.state.c[1]+","+this.state.c[2]+")"}}> 
                     <div id="tri-switch-circle" ref="Circle" style={{marginLeft: this.state.cpos}}/>
                 </div>
-                <div id="tri-switch-text"><p>{this.props.text[this.state.selection]}</p></div>
+                <div id="tri-switch-text"><p>{this.state.text[this.state.selection]} Transaction</p></div>
             </div>
         );
     }

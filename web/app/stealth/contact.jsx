@@ -5,13 +5,9 @@ class Stealth_Contact
         this.label = label;
         this.publickey = publickey;
     }
-    validate_contact()
+    validate_contact(label)
     {
-        if(publickey.length < 45 || publickey.length > 60)
-        {
-            return false;
-        }
-        return true;
+        //todo
     }
     set_contact(label, publickey)
     {

@@ -35,6 +35,7 @@ class AccountNameInput extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
+        this.onPubChange = this.onPubChange.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
     }
 
@@ -60,6 +61,13 @@ class AccountNameInput extends React.Component {
     getVisualValue()
     {
         return this.refs.input.value;
+    }
+    getVisualValue2()
+    {
+        if(this.refs.input2 !== undefined)
+        {
+            return this.refs.input2.value;
+        }
     }
     setVisual(valued)
     {
@@ -116,25 +124,32 @@ class AccountNameInput extends React.Component {
         if (this.props.accountShouldExist || this.props.accountShouldNotExist) AccountActions.accountSearch(value);
     }
 
-    handleChange(e) 
+    handleChange(e,override) 
     {
-        e.preventDefault();
-        e.stopPropagation();
-        // Simplify the rules (prevent typing of invalid characters)
-        var account_name = e.target.value.toLowerCase();
-        account_name = account_name.match(/[a-z0-9@\.-]+/);
-        account_name = account_name ? account_name[0] : null;
-        this.setState({ account_name });
-        this.validateAccountName(account_name);
-        this.setState({value: account_name});
-        this.render();
-        //Assoc/Pay
-        let Mimi = document.getElementById("AS-LABEL");
-        if(account_name != null)
+        if(override === null || override === undefined)
         {
-            if(account_name[0]=="@")
+            e.preventDefault();
+            e.stopPropagation();
+            // Simplify the rules (prevent typing of invalid characters)
+            var account_name = e.target.value.toLowerCase();
+            account_name = account_name.match(/[a-z0-9@\.-]+/);
+            account_name = account_name ? account_name[0] : null;
+            this.setState({ account_name });
+            this.validateAccountName(account_name);
+            this.setState({value: account_name});
+            this.render();
+            //Assoc/Pay
+            let Mimi = document.getElementById("AS-LABEL");
+            if(account_name != null)
             {
-                Mimi.innerText="Associate with account:";
+                if(account_name[0]=="@")
+                {
+                    Mimi.innerText="Associate with account:";
+                }
+                else
+                {
+                    Mimi.innerText="Pay with account:";
+                }
             }
             else
             {
@@ -143,10 +158,15 @@ class AccountNameInput extends React.Component {
         }
         else
         {
-            Mimi.innerText="Pay with account:";
+            console.log("Tick!");
+            this.forceUpdate();
         }
     }
-
+    onPubChange()
+    {
+        console.log("WORKPUBCHANGE");
+        this.handleChange(null,true);
+    }
     onKeyDown(e) {
         if (this.props.onEnter && event.keyCode === 13) this.props.onEnter(e);
     }
@@ -221,7 +241,7 @@ class AccountNameInput extends React.Component {
                             ref="input2"
                             autoComplete="off"
                             placeholder="Stealth Public Key here."
-                            onChange={this.onpubkeychange}
+                            onChange={this.onPubChange}
                         />
                     </section>
                     <div style={{textAlign: "left"}} className="facolor-error">{error}</div>

@@ -1,13 +1,12 @@
-import Stealth_Account from "./account";
-import Stealth_Contact from "./contact";
+import Stealth_Account from "stealth/account";
+import Stealth_Contact from "stealth/contact";
 class Stealth_DB
 {
     constructor()
     {
         this.name = "Stealth_Wallet";
         this.accounts = [];
-        this.contacts = [];
-        this.receipts = [];
+        this.contacts = []; 
         this.associated_account = "";
         this.label = "";
         this.pubkey = "";
@@ -74,44 +73,14 @@ class Stealth_DB
             });
         });
     }
-    load_receipts()
-    {
-        return new Promise( (resolve, reject) => 
-        {
-            let stealth_receipts = [];
-            let db = openDatabase(this.name, "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("SELECT * FROM stealth_receipts", [], function(tx, results) 
-                {
-                    for(var i=0;i<results.rows.length;i++)
-                    {
-                        let account= results.rows.item(i).account;
-                        let receipt = results.rows.item(i).receipt;
-                        let Recpt = new Stealth_Receipt(account,receipt);
-                        stealth_receipts.push(Recpt);
-                    }
-                    if(results.rows.length>0)
-                    {
-                        resolve(stealth_receipts);
-                    }
-                    else
-                    {
-                        reject(false);
-                    }
-                });
-            });
-        });
-    }
     Initialize()
     {
         return new Promise( (resolve, reject) => 
         {
-            Promise.all([this.load_accounts(),this.load_contacts(),this.load_contacts()]).then(function(results){
+            Promise.all([this.load_accounts(),this.load_contacts()]).then(function(results){
                 this.accounts = results[0];
                 this.contacts = results[1];
-                this.receipts = results[2];
-                if(this.accounts !== undefined || this.contacts !== undefined || this.receipts !== undefined)
+                if(this.accounts !== undefined || this.contacts !== undefined)
                 {
                     resolve(true);
                 }
@@ -140,17 +109,6 @@ class Stealth_DB
             }
         }
         return false;//No such contact
-    }
-    get_receipts(receipt)
-    {
-        for(let i=0;i<this.receipts.length;i++)
-        {
-            if(this.receipts[i].receipt == receipt)
-            {
-                return this.receipts[i];
-            }
-        }
-        return false;//No such Receipt
     }
     create_account(ACC)
     {
@@ -204,32 +162,6 @@ class Stealth_DB
             }
         });
     }
-    add_receipt(RCT)
-    {
-        return new Promise( (resolve, reject) => 
-        {
-            var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            if(RCT.receipt !== "" && RCT.receipt !== null && RCT.account !== null && RCT.account !== "")
-            {
-                if(this.get_receipt(RCT.receipt) === false)
-                {
-                    db.transaction(function (tx) 
-                    {
-                        tx.executeSql("INSERT INTO stealth_receipts (account, receipt) VALUES (?, ?)",[RCT.account,RCT.receipt]);
-                    });
-                    resolve(true);
-                }
-                else
-                {
-                    reject(new Error("Stealth Receipt Already Exists!"));
-                }
-            }
-            else
-            {
-                reject(new Error("Invalid Input!"));
-            }
-        });
-    }
     delete_account(name)
     {
         if(name == "" || name == undefined || name == null)
@@ -257,26 +189,6 @@ class Stealth_DB
             db.transaction(function (tx) 
             {
                 tx.executeSql("DELETE FROM stealth_labels WHERE label = ?",[name]);
-            });
-            return true;
-        }
-        else
-        {
-            return new Error("Invalid Input!");
-        }
-    }
-    delete_receipt(receipt)
-    {
-        if(receipt == undefined || receipt == "" || receipt == null)
-        {
-            return false;
-        }
-        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-        if(get_receipt(receipt)!=false)
-        {
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("DELETE FROM stealth_receipts WHERE receipt = ?",[receipt]);
             });
             return true;
         }

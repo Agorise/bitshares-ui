@@ -20,7 +20,7 @@ import ReactTooltip from "react-tooltip";
 import utils from "common/utils";
 import SettingsActions from "actions/SettingsActions";
 import counterpart from "counterpart";
-import StealthCheckBox from "stealth/Visual_Components/StealthCheckBox";
+import TriSwitch from "stealth/Visual_Components/tri-switch";
 import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
@@ -41,7 +41,7 @@ class CreateAccount extends React.Component {
             step: 1
         };
         this.onFinishConfirm = this.onFinishConfirm.bind(this);
-
+        this.OnSwitchChange = this.OnSwitchChange.bind(this);
         this.accountNameInput = null;
     }
 
@@ -71,17 +71,44 @@ class CreateAccount extends React.Component {
         }
         return valid;
     }
-
-    onAccountNameChange(e) {
+    text_select(selection)
+    {
+        let T = [document.getElementById("state0"), document.getElementById("state1"), document.getElementById("state2")];
+        for(var i=0;i<3;i++)
+        {
+            if(selection == i)
+            {
+                T[i].setAttribute("style","display: block");
+            }
+            else
+            {
+                T[i].setAttribute("style","display:none");
+            }
+        }
+    }
+    onAccountNameChange(e) 
+    {
         const state = {};
         if(e.valid !== undefined) state.validAccountName = e.valid;
         if(e.value !== undefined) state.accountName = e.value;
         if (!this.state.show_identicon) state.show_identicon = true;
-        if(e.value !== undefined && e.value !== null)
+        if((this.refs.NSC_SWITCH.state.selection === 0 && this.accountNameInput.getVisualValue()[0] === "@") || (this.refs.NSC_SWITCH.state.selection === 1 && this.accountNameInput.getVisualValue2() !== "" && this.accountNameInput.getVisualValue()[0] === "@"))
         {
-            this.setState(state);
-            this.stealthcheck(e);
+            console.log("TRIGGGERED: SELECTION("+this.refs.NSC_SWITCH.state.selection+")"+"val1"+this.accountNameInput.getVisualValue()[0]+"val2"+this.accountNameInput.getVisualValue2());
+            this.refs.NSC_SWITCH.handleChange();
+            this.text_select(this.refs.NSC_SWITCH.state.selection+1);
         }
+        if(this.refs.NSC_SWITCH.state.selection === 2 && this.accountNameInput.getVisualValue2() === "")
+        {
+            this.refs.NSC_SWITCH.setState({selection: 1, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
+            this.text_select(1);
+        }
+        if(this.accountNameInput.getVisualValue()[0] !== "@" && this.accountNameInput.getVisualValue2() === "")
+        {
+            this.refs.NSC_SWITCH.setState({selection: 0, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
+            this.text_select(0);
+        }
+        this.setState(state);
     }
 
     onPasswordChange(e) {
@@ -183,92 +210,35 @@ class CreateAccount extends React.Component {
             DB.add_contact(CTC);
         }.bind(DB)).catch(function(result){console.log(result);});
     }
-    stealthcheck(e)
+    OnSwitchChange()
     {
-        if(e.value !== undefined)
-        {
-            if(e.value[0]=="@"||this.accountNameInput.getVisualValue()[0] =="@")
-            {
-                //this.removeat(e);
-                this.setState({add_stealth_contact: true});
-                this.refs.stealthcheckinput.setState({checked: false});
-                this.refs.stealthcheckinput.uncheckit();
-                this.setState({StealthChecked: false});
-            }
-            else
-            {
-                this.setState({add_stealth_contact: false});
-            }
-        }
-    }
-    OnStealthCheckChange()
-    {
-        this.setState({StealthChecked: !this.refs.stealthcheckinput.getvalue()});
-        if(this.state.StealthChecked !== true)
-        {
-            var currentname = this.accountNameInput.getVisualValue();
-            var nosthname;
-            if(currentname[0]=="@")
-            {
-                for(var i=0;i<currentname.length;i++)
-                {
-                    if(nosthname === undefined)
-                    {
-                        nosthname = currentname[i+1];
-                        continue;
-                    }
-                    if(i==1)
-                    {
-                        continue;
-                    }
-                    nosthname =nosthname+currentname[i];
-                }
-                this.accountNameInput.setValue(nosthname);
-                if(nosthname != null)
-                {
-                    this.accountNameInput.setVisual(nosthname);
-                }
-                else
-                {
-                    this.accountNameInput.setVisual("");
-                }
-                this.accountNameInput.setState({account_name: nosthname});
-                this.setState({accountName: this.accountNameInput.getVisualValue()});
-                this.setState({add_stealth_contact: false});
-            }
-        }
+        console.log("SWITCHED!");
     }
     onSubmit(e) 
     {
         e.preventDefault();
         if (!this.isValid()) return;
         let account_name = this.accountNameInput.getValue();
-        if(this.state.StealthChecked === true && this.state.add_stealth_contact === false)
+        if(this.refs.NSC_SWITCH.state.selection === 0)
+        {
+            if (WalletDb.getWallet()) {
+                this.createAccount(account_name);
+            } 
+            else 
+            {
+                let password = this.refs.password.value();
+                this.createWallet(password).then(() => this.createAccount(account_name));
+            }
+        }
+        else if(this.refs.NSC_SWITCH.state.selection === 1)
         {
             this.Create_Stealth_Account();
-            //this.props.router.push("/dashboard");
-        }
-        else if(this.state.StealthChecked === false && this.state.add_stealth_contact === true)
-        {
-            this.Add_Stealth_Contact();
-            //this.props.router.push("/dashboard");
         }
         else
         {
-            if(this.state.StealthChecked === false && this.state.add_stealth_contact === false)
+            if(this.refs.NSC_SWITCH.state.selection !== undefined || this.refs.NSC_SWITCH.state.selection !== null)
             {
-                if (WalletDb.getWallet()) {
-                    this.createAccount(account_name);
-                } 
-                else 
-                {
-                    let password = this.refs.password.value();
-                    this.createWallet(password).then(() => this.createAccount(account_name));
-                }
-            }
-            else
-            {
-                console.log("Error, something went wrong in Stealth label adding or in Stealth account creation");
+                this.Create_Stealth_Contact();
             }
         }
     }
@@ -316,16 +286,14 @@ class CreateAccount extends React.Component {
                     noLabel
                 />
                 {/*Only display stealth checkbox in case this is not the first account*/
-                    firstAccount ? null :
-                    (
-                        <div style={{marginBottom: "10px", marginTop: "10px"}}>
-                        <label>Create stealth account?</label>
-                        <StealthCheckBox
-                        id="stealthcheckbox"
-                        ref="stealthcheckinput"
-                        onChange={this.OnStealthCheckChange.bind(this)}
+                    firstAccount ? null : (
+                        <TriSwitch 
+                            ref="NSC_SWITCH"
+                            label="Normal Account"
+                            id="NSC_Button"
+                            text={["Normal Account","Stealth Account","Stealth Contact"]}
+                            onClick={this.OnSwitchChange}
                         />
-                        </div>
                     )
                 }
                 {/* Only ask for password if a wallet already exists */}
@@ -388,15 +356,15 @@ class CreateAccount extends React.Component {
         let hasWallet = WalletDb.getWallet();
         let my_accounts = AccountStore.getMyAccounts();
         let firstAccount = my_accounts.length === 0;
-
         return (
             <div>
+                <div id="state0" style={{display: "block"}}>
                 <h4 style={{fontWeight: "bold", paddingBottom: 15}}><Translate content="wallet.wallet_browser" /></h4>
-
                 <p>{!hasWallet ? <Translate content="wallet.has_wallet" /> : null}</p>
-
+                
                 <Translate style={{textAlign: "left"}} component="p" content="wallet.create_account_text" />
-
+                <p><Translate content="wallet.stealth_create_account_hint" /></p>
+                <p><Translate content="wallet.stealth_create_contact_hint" /></p>
                 {firstAccount ?
                     <Translate style={{textAlign: "left"}} component="p" content="wallet.first_account_paid" /> :
                     <Translate style={{textAlign: "left"}} component="p" content="wallet.not_first_account" />}
@@ -407,6 +375,17 @@ class CreateAccount extends React.Component {
                         <br/>
                     </div>
                 } */}
+                </div>
+                <div id="state1" style={{display: "none",textAlign: "left"}}>
+                    <h4>You are now creating a Stealth account.</h4>
+                    <p>Stealth accounts must be associated to an LTM account.</p>
+                    <p>The process is really simple and no fee is required upon the creation of a stealth account.</p>
+                    <p>Stealth accounts are capable of blinded and stealth transactions which do require a higher fee than normal ones.</p>
+                </div>
+                <div id="state2" style={{display: "none"}}>
+                <h4>You are now creating a Stealth contact.</h4>
+                <p>Stealth contacts are added by choosing a label or a Name of your choice in the account name form, then copying the public key of the stealth account you wish to send funds to in the Public Key form.</p>
+                </div>
             </div>
         );
     }

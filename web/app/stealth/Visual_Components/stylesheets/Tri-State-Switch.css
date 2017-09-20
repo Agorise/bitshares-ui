@@ -28,7 +28,7 @@
 #tri-switch-text
 {
     margin-top: -1.5px;
-    float: right;
+    float: left;
     width: fit-content;
     height: fit-content;
     opacity: 0.9;
@@ -38,12 +38,14 @@
 {
     font-size: 23px;
     font-family: Verdana, Tahoma, sans-serif;
+    text-align: left;
     
 }
 #tri-switch-container
 {
-    margin-top: -13px;
-    width: fit-content;
-    height: 100%;
+    margin-top: 0px;
+    width: 300px;
+    height: 32px;
     vertical-align: middle;
+    margin-bottom: 26px;
 }
