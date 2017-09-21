@@ -1,6 +1,6 @@
 import WalletUnlockActions from "actions/WalletUnlockActions";
 import WalletDb from "stores/WalletDb";
-import {Aes, TransactionBuilder, TransactionHelper, FetchChain} from "bitsharesjs/es";
+import {Aes, TransactionBuilder, TransactionHelper, FetchChain} from "agorise-bitsharesjs/es";
 class StealthOps 
 {
 //TO STEALTH

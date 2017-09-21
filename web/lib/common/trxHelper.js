@@ -1,4 +1,4 @@
-import { FetchChain, PrivateKey, Aes, TransactionHelper, ChainTypes, ops } from "bitsharesjs/es";
+import { FetchChain, PrivateKey, Aes, TransactionHelper, ChainTypes, ops } from "agorise-bitsharesjs/es";
 import { Price, Asset } from "common/MarketClasses";
 const { operations } = ChainTypes;
 

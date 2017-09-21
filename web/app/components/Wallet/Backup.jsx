@@ -12,7 +12,7 @@ import {saveAs} from "file-saver";
 import cname from "classnames";
 import Translate from "react-translate-component";
 import {ChainConfig} from "bitsharesjs-ws";
-import {PrivateKey} from "bitsharesjs/es";
+import {PrivateKey} from "agorise-bitsharesjs/es";
 
 const connectObject = {
     listenTo() {

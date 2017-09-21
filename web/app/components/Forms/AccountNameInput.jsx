@@ -3,7 +3,7 @@ import {PropTypes} from "react";
 import classNames from "classnames";
 import AccountActions from "actions/AccountActions";
 import AccountStore from "stores/AccountStore";
-import {ChainValidation} from "bitsharesjs/es";
+import {ChainValidation} from "agorise-bitsharesjs/es";
 import Translate from "react-translate-component";
 import counterpart from "counterpart";
 import AltContainer from "alt-container";
@@ -35,7 +35,6 @@ class AccountNameInput extends React.Component {
         };
 
         this.handleChange = this.handleChange.bind(this);
-        this.onPubChange = this.onPubChange.bind(this);
         this.onKeyDown = this.onKeyDown.bind(this);
     }
 
@@ -61,13 +60,6 @@ class AccountNameInput extends React.Component {
     getVisualValue()
     {
         return this.refs.input.value;
-    }
-    getVisualValue2()
-    {
-        if(this.refs.input2 !== undefined)
-        {
-            return this.refs.input2.value;
-        }
     }
     setVisual(valued)
     {
@@ -112,12 +104,19 @@ class AccountNameInput extends React.Component {
             ChainValidation.is_account_name_error(value)
 
         this.state.warning = null;
-        if(this.props.cheapNameOnly) {
+        if(this.props.cheapNameOnly) 
+        {
             if( ! this.state.error && ! ChainValidation.is_cheap_name( value ))
+            { 
                 this.state.error = counterpart.translate("account.name_input.premium_name_faucet");
-        } else {
+            }
+        } 
+        else 
+        {
             if( ! this.state.error && ! ChainValidation.is_cheap_name( value ))
+            {
                 this.state.warning = counterpart.translate("account.name_input.premium_name_warning");
+            }
         }
         this.setState({value: value, error: this.state.error, warning: this.state.warning});
         if (this.props.onChange) this.props.onChange({value: value, valid: !this.getError()});
@@ -162,29 +161,16 @@ class AccountNameInput extends React.Component {
             this.forceUpdate();
         }
     }
-    onPubChange()
-    {
-        console.log("WORKPUBCHANGE");
-        this.handleChange(null,true);
-    }
     onKeyDown(e) {
         if (this.props.onEnter && event.keyCode === 13) this.props.onEnter(e);
     }
 
     render()
     {
-        let trigger = false;
         let account_name;
         if(this.state.value)
         {
             account_name = this.state.value;
-        }
-        if(account_name!=null)
-        {
-            if(account_name[0] == "@")
-            {
-                trigger = true;
-            }
         }
         else
         {
@@ -194,61 +180,26 @@ class AccountNameInput extends React.Component {
         let class_name = classNames("form-group", "account-name", {"has-error": false});
         let warning = this.state.warning;
         let {noLabel} = this.props;
-        if(trigger===false)
-        {
-            return (
-                <div className={class_name}>
-                    {noLabel ? null : <label><Translate content="account.name" /></label>}
-                    <section>
-                        <input
-                            name="value"
-                            type="text"
-                            id={this.props.id}
-                            ref="input"
-                            autoComplete="off"
-                            placeholder={this.props.placeholder}
-                            onChange={this.handleChange}
-                            onKeyDown={this.onKeyDown}
-                            value={this.state.account_name || this.props.initial_value}
-                        />
-                    </section>
-                    <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
-                    <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
-                </div>
-            );
-        }
-        else
-        {
-            return (
-                <div className={class_name}>
-                    {noLabel ? null : <label><Translate content="account.name" /></label>}
-                    <section>
-                        <input
-                            name="value"
-                            type="text"
-                            id={this.props.id}
-                            ref="input"
-                            autoComplete="off"
-                            placeholder={this.props.placeholder}
-                            onChange={this.handleChange}
-                            onKeyDown={this.onKeyDown}
-                            value={this.state.account_name || this.props.initial_value}
-                        />
-                        <input
-                            name="value"
-                            type="text"
-                            id="stealthpkey"
-                            ref="input2"
-                            autoComplete="off"
-                            placeholder="Stealth Public Key here."
-                            onChange={this.onPubChange}
-                        />
-                    </section>
-                    <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
-                    <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
-                </div>
-            );
-        }
+        return (
+            <div className={class_name}>
+                {noLabel ? null : <label><Translate content="account.name" /></label>}
+                <section>
+                    <input
+                        name="value"
+                        type="text"
+                        id={this.props.id}
+                        ref="input"
+                        autoComplete="off"
+                        placeholder={this.props.placeholder}
+                        onChange={this.handleChange}
+                        onKeyDown={this.onKeyDown}
+                        value={this.state.account_name || this.props.initial_value}
+                    />
+                </section>
+                <div style={{textAlign: "left"}} className="facolor-error">{error}</div>
+                <div style={{textAlign: "left"}} className="facolor-warning">{error ? null : warning}</div>
+            </div>
+        );
     }
 }
 

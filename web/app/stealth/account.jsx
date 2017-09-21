@@ -1,4 +1,4 @@
-import {PrivateKey, key} from "bitsharesjs/es";
+import {PrivateKey, key} from "agorise-bitsharesjs/es";
 class Stealth_Account
 {
     constructor()

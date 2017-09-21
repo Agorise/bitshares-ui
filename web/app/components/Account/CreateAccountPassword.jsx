@@ -12,7 +12,7 @@ import TransactionConfirmStore from "stores/TransactionConfirmStore";
 import LoadingIndicator from "../LoadingIndicator";
 import Translate from "react-translate-component";
 import counterpart from "counterpart";
-import {ChainStore, FetchChain, key} from "bitsharesjs/es";
+import {ChainStore, FetchChain, key} from "agorise-bitsharesjs/es";
 import ReactTooltip from "react-tooltip";
 import utils from "common/utils";
 import SettingsActions from "actions/SettingsActions";
@@ -176,7 +176,6 @@ class CreateAccountPassword extends React.Component {
                 isLTM = true;
             }
         }
-
         let buttonClass = classNames("submit-button button no-margin", {disabled: (!valid || (registrar_account && !isLTM))});
 
         return (

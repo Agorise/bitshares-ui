@@ -1,4 +1,4 @@
-import { SerializerValidation, types} from "bitsharesjs/es";
+import { SerializerValidation, types} from "agorise-bitsharesjs/es";
 var config = require("chain/serializer_config");
 
 class DebugApi {

@@ -3,7 +3,6 @@ import {PropTypes} from "react";
 class TriSwitch extends React.Component {
 
     static propTypes = {
-        onClick: PropTypes.func,
         label: React.PropTypes.string.isRequired,
         cpx: React.PropTypes.array,
         color_state: React.PropTypes.array,
@@ -12,7 +11,9 @@ class TriSwitch extends React.Component {
     static defaultProps = {
         cpx: [3,16,30],
         color_state: [[204,204,204],[218,195,20],[186,15,0]],
-        text: []
+        text: [],
+        positions: 3,
+        Auto: true
     }
     constructor() {
         super();
@@ -20,7 +21,7 @@ class TriSwitch extends React.Component {
             selection: 0,
             cpos: 3,
             c: [204,204,204],
-            intervaid: null,
+            intervalid: null,
         };     
         this.handleChange = this.handleChange.bind(this);
     }
@@ -68,10 +69,13 @@ class TriSwitch extends React.Component {
      * Sets next state & triggers animation_logic
     */handleChange()
     {
-        clearInterval(this.state.intervalid);
-        let state = this.state.selection;
-        if(state==2){ state = 0; }else{ state++; }
-        this.setState({selection: state, intervalid: setInterval(this.Animation_Logic.bind(this),2)});
+        if(this.props.Auto === true)//If you want to handle this externally set auto to false..
+        {
+            clearInterval(this.state.intervalid);
+            let state = this.state.selection;
+            if(state==this.props.positions-1){ state = 0; }else{ state++; }
+            this.setState({selection: state, intervalid: setInterval(this.Animation_Logic.bind(this),2)});
+        }
     }
     render()
     {

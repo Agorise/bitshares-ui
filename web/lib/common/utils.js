@@ -2,7 +2,7 @@ var numeral = require("numeral");
 
 let id_regex = /\b\d+\.\d+\.(\d+)\b/;
 
-import {ChainTypes} from "bitsharesjs/es";
+import {ChainTypes} from "agorise-bitsharesjs/es";
 var {object_type} = ChainTypes;
 
 var Utils = {

@@ -5,7 +5,7 @@ import AccountActions from "actions/AccountActions";
 import SettingsActions from "actions/SettingsActions";
 import iDB from "idb-instance";
 import PrivateKeyStore from "./PrivateKeyStore";
-import {ChainStore, ChainValidation, FetchChain} from "bitsharesjs/es";
+import {ChainStore, ChainValidation, FetchChain} from "agorise-bitsharesjs/es";
 import {Apis} from "bitsharesjs-ws";
 import AccountRefsStore from "stores/AccountRefsStore";
 import AddressIndex from "stores/AddressIndex";

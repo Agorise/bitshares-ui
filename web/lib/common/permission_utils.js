@@ -1,4 +1,4 @@
-import {ChainStore} from "bitsharesjs/es";
+import {ChainStore} from "agorise-bitsharesjs/es";
 import Immutable from "immutable";
 
 let KeyAuth = function(auth) {

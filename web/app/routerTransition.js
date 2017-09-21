@@ -1,5 +1,5 @@
 import {Apis, Manager} from "bitsharesjs-ws";
-import {ChainStore} from "bitsharesjs/es";
+import {ChainStore} from "agorise-bitsharesjs/es";
 
 // Stores
 import iDB from "idb-instance";

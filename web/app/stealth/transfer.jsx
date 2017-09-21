@@ -3,7 +3,7 @@ import AssetStore from "stores/AssetStore";
 import Stealth_Account from "stealth/account";
 import Stealth_Contact from "stealth/contact";
 import SDB from "stealth/db";
-import {PrivateKey, key, hash} from "bitsharesjs/es";
+import {PrivateKey, key, hash} from "agorise-bitsharesjs/es";
 import {blind_output,blind_memo,blind_input,blind_confirmation,memo_data,stealth_confirmation,transfer_to_blind_op} from "stealth/confidential";
 
 class Stealth_Transfer

@@ -1,317 +1,124 @@
 import Stealth_Account from "./account";
 import Stealth_Contact from "./contact";
+import Dexie from "dexie";
 class Stealth_DB
 {
     constructor()
     {
-        this.name = "Stealth_Wallet";
+        this.initialized = false;
+        this.IDB = new Dexie("Stealth_Wallet");
         this.accounts = [];
         this.contacts = [];
         this.receipts = [];
         this.associated_account = "";
         this.label = "";
         this.pubkey = "";
-    }
-    load_accounts()
-    {
-        return new Promise( (resolve, reject) => 
-        {
-            let stealth_accounts = [];
-            let db = openDatabase(this.name, "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("SELECT * FROM stealth_accounts", [], function(tx, results) 
-                {
-                    for(var i=0;i<results.rows.length;i++)
-                    {
-                        let slabel= results.rows.item(i).label;
-                        let sbrainkey = results.rows.item(i).bkey;
-                        let spublickey = results.rows.item(i).publickey;
-                        let sprivatekey = results.rows.item(i).privatekey;
-                        let saccount = results.rows.item(i).account;
-                        let account = new Stealth_Account();
-                        account.load_account(slabel,sbrainkey,spublickey,sprivatekey,saccount);
-                        stealth_accounts.push(account);
-                    }
-                    if(results.rows.length>0)
-                    {
-                        resolve(stealth_accounts);
-                    }
-                    else
-                    {
-                        reject(false);
-                    }
-                });
-            });
+        this.IDB.version(1).stores({
+            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account",
+            stealth_contacts: "id++,label,public_key",
+            receipts: "id++,account,receipt"
         });
     }
-    load_contacts()
+    Load_Accounts()
     {
-        return new Promise( (resolve, reject) => 
-        {
-            let stealth_contacts = [];
-            let db = openDatabase(this.name, "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("SELECT * FROM stealth_labels", [], function(tx, results) 
-                {
-                    for(var i=0;i<results.rows.length;i++)
-                    {
-                        let slabel= results.rows.item(i).label;
-                        let spublickey = results.rows.item(i).pubkey;
-                        let contact = new Stealth_Contact(slabel,spublickey);
-                        stealth_contacts.push(contact);
-                    }
-                    if(results.rows.length>0)
-                    {
-                        resolve(stealth_contacts);
-                    }
-                    else
-                    {
-                        reject(false);
-                    }
-                });
-            });
+        let Accounts = this.IDB.stealth_accounts;
+        return Accounts.each(a=>{
+            let SACC = new Stealth_Account();
+            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account);
+            this.accounts.push(SACC);
         });
     }
-    load_receipts()
+    Load_Contacts()
     {
-        return new Promise( (resolve, reject) => 
-        {
-            let stealth_receipts = [];
-            let db = openDatabase(this.name, "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("SELECT * FROM stealth_receipts", [], function(tx, results) 
-                {
-                    for(var i=0;i<results.rows.length;i++)
-                    {
-                        let account= results.rows.item(i).account;
-                        let receipt = results.rows.item(i).receipt;
-                        let Recpt = new Stealth_Receipt(account,receipt);
-                        stealth_receipts.push(Recpt);
-                    }
-                    if(results.rows.length>0)
-                    {
-                        resolve(stealth_receipts);
-                    }
-                    else
-                    {
-                        reject(false);
-                    }
-                });
-            });
+        let Contacts = this.IDB.stealth_contacts;
+        return Contacts.each(c=>{
+            let SCTC = new Stealth_Contact(c.label,c.public_key);
+            this.contacts.push(SCTC);
+        });
+    }
+    Load_Receipts()
+    {
+        let Receipts = this.IDB.receipts;
+        Receipts.each(r=>{
+            let RCPT = new Stealth_Receipt(r.account,r.receipt);
+            this.receipts.push(RCPT);
         });
     }
     Initialize()
     {
-        return new Promise( (resolve, reject) => 
-        {
-            Promise.all([this.load_accounts(),this.load_contacts(),this.load_contacts()]).then(function(results){
-                this.accounts = results[0];
-                this.contacts = results[1];
-                this.receipts = results[2];
-                if(this.accounts !== undefined || this.contacts !== undefined || this.receipts !== undefined)
-                {
-                    resolve(true);
-                }
-                reject("Could not load database!");
-            }.bind(this));
-        });
+        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Receipts()]);
     }
-    get_account(name)
+    get_account(a)
     {
-        for(let i=0;i<this.accounts.length;i++)
+        for(var i=0;i<this.accounts.length;i++)
         {
-            if(this.accounts[i].label == name)
+            console.log("SEARCHING: "+this.accounts[i].label);
+            if(this.accounts[i].label===a)
             {
                 return this.accounts[i];
             }
         }
-        return false;//No such account
+        return false;
     }
-    get_contact(name)
+    get_contact(c)
     {
-        for(let i=0;i<this.contacts.length;i++)
+        for(var i=0;i<this.contacts.length;i++)
         {
-            if(this.contacts[i].label == name)
+            if(this.contacts[i].label===c)
             {
                 return this.contacts[i];
             }
         }
-        return false;//No such contact
+        return false;
     }
-    get_receipts(receipt)
+    create_account(A)
     {
-        for(let i=0;i<this.receipts.length;i++)
-        {
-            if(this.receipts[i].receipt == receipt)
-            {
-                return this.receipts[i];
-            }
-        }
-        return false;//No such Receipt
+        if(this.get_account(A.label) !== false){return false;}
+        this.IDB.stealth_accounts
+        .put({
+            label: A.label,
+            brain_key: A.brainkey,
+            private_key: A.privatekey,
+            public_key: A.publickey,
+            associated_account: A.account
+        }).then(()=>{this.accounts.push(A);});
+        return true;
     }
-    create_account(ACC)
+    create_contact(C)
     {
-        return new Promise( (resolve, reject) => 
-        {
-            var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            if(ACC.label !== "" && ACC.label !== null && ACC.brainkey !== null && ACC.brainkey !== "")
-            {
-                if(this.get_account(ACC.label) === false)
-                {
-                    db.transaction(function (tx) 
-                    {
-                        tx.executeSql("INSERT INTO stealth_accounts (label, bkey, publickey, privatekey, account) VALUES (?, ?, ?, ?, ?)",[ACC.label,ACC.brainkey,ACC.publickey,ACC.privatekey,ACC.account]);
-                    });
-                    resolve(true);
-                }
-                else
-                {
-                    reject(new Error("Stealth Account Already Exists!"));
-                }
-            }
-            else
-            {
-                reject(new Error("Invalid Input!"));
-            }
+        if(this.get_contact(C.label) !== false){return false;}
+        this.IDB.stealth_contacts
+        .put({
+            label: C.label,
+            public_key: C.publickey
         });
+        return true;
     }
-    add_contact(CTC)
+    delete_account(A)
     {
-        return new Promise( (resolve, reject) => 
+        let X = this.get_account(A);
+        if(X !== false)
         {
-            var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            if(CTC.label !== "" && CTC.label !== null && CTC.publickey !== null && CTC.publickey !== "")
-            {
-                if(this.get_contact(CTC.label) === false)
-                {
-                    db.transaction(function (tx) 
-                    {
-                        tx.executeSql("INSERT INTO stealth_labels (label, pubkey) VALUES (?, ?)",[CTC.label,CTC.publickey]);
-                    });
-                    resolve(true);
-                }
-                else
-                {
-                    reject(new Error("Stealth Contact Already Exists!"));
-                }
-            }
-            else
-            {
-                reject(new Error("Invalid Input!"));
-            }
-        });
-    }
-    add_receipt(RCT)
-    {
-        return new Promise( (resolve, reject) => 
-        {
-            var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-            if(RCT.receipt !== "" && RCT.receipt !== null && RCT.account !== null && RCT.account !== "")
-            {
-                if(this.get_receipt(RCT.receipt) === false)
-                {
-                    db.transaction(function (tx) 
-                    {
-                        tx.executeSql("INSERT INTO stealth_receipts (account, receipt) VALUES (?, ?)",[RCT.account,RCT.receipt]);
-                    });
-                    resolve(true);
-                }
-                else
-                {
-                    reject(new Error("Stealth Receipt Already Exists!"));
-                }
-            }
-            else
-            {
-                reject(new Error("Invalid Input!"));
-            }
-        });
-    }
-    delete_account(name)
-    {
-        if(name == "" || name == undefined || name == null)
-        {
-            return false;
-        }
-        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-        if(get_contact(name)!=false)
-        {
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("DELETE FROM stealth_accounts WHERE label = ?",[name]);
-            });
-        }
-    }
-    delete_contact(name)
-    {
-        if(name == undefined || name == "" || name == null)
-        {
-            return false;
-        }
-        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-        if(get_contact(name)!=false)
-        {
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("DELETE FROM stealth_labels WHERE label = ?",[name]);
-            });
+            this.IDB.stealth_accounts.where("label").equals(A).delete();
             return true;
         }
-        else
-        {
-            return new Error("Invalid Input!");
-        }
+        return false;
     }
-    delete_receipt(receipt)
+    delete_contact(C)
     {
-        if(receipt == undefined || receipt == "" || receipt == null)
+        let X = this.get_contact(C);
+        if(X !== false)
         {
-            return false;
-        }
-        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-        if(get_receipt(receipt)!=false)
-        {
-            db.transaction(function (tx) 
-            {
-                tx.executeSql("DELETE FROM stealth_receipts WHERE receipt = ?",[receipt]);
-            });
+            this.IDB.stealth_contacts.where("label").equals(C).delete();
             return true;
         }
-        else
-        {
-            return new Error("Invalid Input!");
-        }
+        return false;
     }
 }
 /*USAGE: 
-        Loading up database;
-        let DB = new SDB;
-        DB.Load_Accounts().then(function(result)
-        {
-            if(result != false)
-            {
-                DB.accounts = result;
-                let acc = DB.get_account("bla-01");
-                console.log("WOOT FOUND:"+acc.publickey);
-            }
-            else
-            {
-                throw new Error("Stealth->DB->load_accounts Failed");
-            }
-        });
-        DB.Load_Contacts().then(function(result)
-        {
-            if(result != false)
-            {
-                DB.contacts = result;
-            }
-            else
-            {
-                throw new Error("Stealth->DB->load_contacts Failed");
-            }
-        });
+        let DB = new Stealth_DB()
+        DB.Initialize().then(()=>{
+            do something with it
+        })
 */
 export default Stealth_DB;

@@ -14,7 +14,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/bitshares/bitshares-ui"
+    "url": "git://github.com/agorise/bitshares-ui"
   },
   "scripts": {
     "test": "NODE_ENV=test jest",
@@ -35,14 +35,16 @@
     "build-win32": "set NODE_ENV=production && webpack --env.prod --progress --colors &&  echo 'copying to electron/build..' &&  xcopy dist ..\\electron\\build /s /e /y && echo 'done.'"
   },
   "dependencies": {
+    "agorise-bitsharesjs": "^1.2.12",
     "alt": "^0.18.6",
     "alt-container": "^1.0.0",
     "alt-react": "0.0.1",
     "bignumber.js": "^4.0.0",
-    "bitsharesjs": "^1.2.9",
     "classnames": "^2.2.1",
     "cookies-js": "^1.2.1",
+    "copy-to-clipboard": "^3.0.8",
     "counterpart": "^0.17.1",
+    "dexie": "^1.5.1",
     "event-emitter": "^0.3.4",
     "file-saver": "^1.3.3",
     "foundation-apps": "git+https://github.com/zurb/foundation-apps.git",
@@ -61,8 +63,9 @@
     "perfect-scrollbar": "git+https://github.com/bitshares/perfect-scrollbar.git",
     "react": "^15.6.1",
     "react-addons-css-transition-group": "^15.6.0",
-    "react-async": "^2.1.0",
     "react-clipboard.js": "^1.0.1",
+    "react-contexify": "^2.1.3",
+    "react-contextify": "^0.1.0",
     "react-dom": "^15.6.1",
     "react-foundation-apps": "git+https://github.com/valzav/react-foundation-apps.git",
     "react-highcharts": "^10.0.0",

@@ -10,7 +10,6 @@ var logo = require("assets/logo-ico-blue.png");
 import LoadingIndicator from "../LoadingIndicator";
 import SettingsActions from "actions/SettingsActions";
 import WalletUnlockActions from "actions/WalletUnlockActions";
-
 class Dashboard extends React.Component {
 
     constructor() {
@@ -180,9 +179,11 @@ class Dashboard extends React.Component {
         let {width, showIgnored, featuredMarkets, newAssets} = this.state;
 
         if (passwordAccount && !linkedAccounts.has(passwordAccount)) {
-            linkedAccounts = linkedAccounts.add(passwordAccount);
+            linkedAccounts = linkedAccounts.add(passwordAccount);this.props
         }
         let names = linkedAccounts.toArray().sort();
+        console.log("Linkedaccs"+linkedAccounts);
+        console.log("NAMES:" + names);
         if (passwordAccount && names.indexOf(passwordAccount) === -1) names.push(passwordAccount);
         let ignored = myIgnoredAccounts.toArray().sort();
 

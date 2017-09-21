@@ -1,4 +1,4 @@
-import {PublicKey} from "bitsharesjs/es";
+import {PublicKey} from "agorise-bitsharesjs/es";
 import utils from "common/utils";
 /*Since js classes are more like C structs in ways, why not have them presented like this for ease of unerstanding?*/
 class blind_memo

@@ -1,4 +1,4 @@
-import {ChainStore} from "bitsharesjs/es";
+import {ChainStore} from "agorise-bitsharesjs/es";
 import {Apis} from "bitsharesjs-ws";
 import React from "react";
 import IntlStore from "stores/IntlStore";
@@ -22,6 +22,9 @@ import WalletUnlockModal from "./components/Wallet/WalletUnlockModal";
 import BrowserSupportModal from "./components/Modal/BrowserSupportModal";
 import Footer from "./components/Layout/Footer";
 import WalletDb from "stores/WalletDb";
+import Menu_Stealth_DashBoard from "stealth/Visual_Components/Account_DashBoard";
+import Menu_StealthC_DashBoard from "stealth/Visual_Components/Contact_DashBoard";
+import "stealth/Visual_Components/stylesheets/menus.css";
 class App extends React.Component {
 
     constructor() {
@@ -140,6 +143,7 @@ class App extends React.Component {
     // }
 
     render() {
+        
         let {disableChat, isMobile, showChat, dockedChat, theme} = this.state;
         let content = null;
 
@@ -183,6 +187,7 @@ class App extends React.Component {
             <div style={{backgroundColor: !this.state.theme ? "#2a2a2a" : null}} className={this.state.theme}>
                 <div id="content-wrapper">
                     {content}
+                    
                     <NotificationSystem
                         ref="notificationSystem"
                         allowHTML={true}
@@ -211,12 +216,17 @@ class RootIntl extends React.Component {
 
     render() {
         return (
+            
             <IntlProvider
                 locale={this.props.locale.replace(/cn/, "zh")}
                 formats={intlData.formats}
                 initialNow={Date.now()}
             >
+            <div>
                 <App {...this.props}/>
+                <Menu_Stealth_DashBoard/>
+                <Menu_StealthC_DashBoard/>
+            </div>
             </IntlProvider>
         );
     }

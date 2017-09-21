@@ -2,7 +2,7 @@ import React, {Component} from "react";
 import { connect } from "alt-react";
 import cname from "classnames";
 import notify from "actions/NotificationActions";
-import {PrivateKey, Aes, PublicKey, hash} from "bitsharesjs/es";
+import {PrivateKey, Aes, PublicKey, hash} from "agorise-bitsharesjs/es";
 import {ChainConfig} from "bitsharesjs-ws";
 import PrivateKeyStore from "stores/PrivateKeyStore";
 import WalletUnlockActions from "actions/WalletUnlockActions";

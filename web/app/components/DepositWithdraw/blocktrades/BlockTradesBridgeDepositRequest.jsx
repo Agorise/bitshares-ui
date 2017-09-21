@@ -14,7 +14,7 @@ import { blockTradesAPIs } from "api/apiConfig";
 import { debounce } from "lodash";
 import { checkFeeStatusAsync, checkBalance } from "common/trxHelper";
 import { Asset } from "common/MarketClasses";
-import { ChainStore } from "bitsharesjs/es";
+import { ChainStore } from "agorise-bitsharesjs/es";
 import { getConversionJson } from "common/blockTradesMethods";
 
 class ButtonConversion extends React.Component {

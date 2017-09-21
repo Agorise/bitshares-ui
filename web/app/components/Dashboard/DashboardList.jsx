@@ -9,11 +9,15 @@ import ChainTypes from "../Utility/ChainTypes";
 import BindToChainState from "../Utility/BindToChainState";
 import SettingsActions from "actions/SettingsActions";
 import Icon from "../Icon/Icon";
-import {ChainStore} from "bitsharesjs/es";
+import {ChainStore} from "agorise-bitsharesjs/es";
 import TotalBalanceValue from "../Utility/TotalBalanceValue";
 import AccountStore from "stores/AccountStore";
 import counterpart from "counterpart";
-
+import Stealth_Account from "stealth/DB/account";
+import Stealth_Contact from "stealth/DB/contact";
+import Stealth_DB from "stealth/DB/db";
+import { ContextMenuProvider } from "react-contexify";
+import confidential_logo from "stealth/Visual_Components/images/confidential.png";
 const starSort = function(a, b, inverse, starredAccounts) {
 	let aName = a.get("name");
 	let bName = b.get("name");
@@ -48,7 +52,7 @@ class DashboardList extends React.Component {
 
 	static defaultProps = {
 		width: 2000,
-		compact: false
+		compact: false,
 	};
 
 	constructor(props) {
@@ -57,15 +61,25 @@ class DashboardList extends React.Component {
 		let symbols = inputValue ? inputValue.split(":") : [null];
 		let quote = symbols[0];
 		let base = symbols.length === 2 ? symbols[1] : null;
-
-		this.state = {
+		this.state = DashboardList.getInitialState(props);
+	}
+	static getInitialState(props)
+	{
+		let SDB = new Stealth_DB;
+		return {
 			inverseSort: props.viewSettings.get("dashboardSortInverse", true),
 			sortBy: props.viewSettings.get("dashboardSort", "star"),
-			dashboardFilter: props.viewSettings.get("dashboardFilter", "")
-		};
-
+			dashboardFilter: props.viewSettings.get("dashboardFilter", ""),
+			SDB: SDB
+		}
 	}
-
+	componentDidMount()
+	{
+		if(!this.state.SDB.initialized)
+		{
+			this.state.SDB.Initialize().then(function(){this.forceUpdate();}.bind(this));
+		}
+	}
 	shouldComponentUpdate(nextProps, nextState) {
 		return (
 			!utils.are_equal_shallow(nextProps.accounts, this.props.accounts) ||
@@ -110,7 +124,6 @@ class DashboardList extends React.Component {
 			dashboardSortInverse: inverse
 		});
 	}
-
 	_renderList(accounts) {
 		const {width, starredAccounts} = this.props;
 		const {dashboardFilter, sortBy, inverseSort} = this.state;
@@ -190,7 +203,6 @@ class DashboardList extends React.Component {
 
 				let isStarred = starredAccounts.has(accountName);
 				let starClass = isStarred ? "gold-star" : "grey-star";
-
 				return (
 					<tr key={accountName}>
 						<td onClick={this._onStar.bind(this, accountName, isStarred)}>
@@ -216,7 +228,93 @@ class DashboardList extends React.Component {
 			}
 		});
 	}
+	list_stealth(xaccounts)
+	{
+		const {dashboardFilter} = this.state;
+		if(xaccounts === undefined)
+		{
+			return(
+				<tr id={"stealthacc_"}>
+					<td><Icon className="grey-star" name="fi-star"/></td>
+					<td>
+					No Accounts yet!
+					</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0 bts</td>
+				</tr>
+			);
+		}
+		return xaccounts
+		.filter(a => {
+			if (!a) return false;
+			console.log(a.label);
+			return a.label.indexOf(dashboardFilter) !== -1;
+		}).map(xacc => {
+			return (
+				<tr key={xacc.label} id={"stealthacc_"+xacc.label}>
+					<td><Icon className="grey-star" name="fi-star"/></td>
+					<td style={{color: "#4690e2"}}>
+					<div style={{display: "flex"}}>
+					<img src={confidential_logo} style={{height: 17+"px",width: 17+"px", marginRight: 10}}/>
+						<b style={{paddingTop: 1}}>
+						<ContextMenuProvider id="menu_stealth_dashboard">{xacc.label}</ContextMenuProvider>
+						</b>
+					</div>
+					</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0 bts</td>
+				</tr>
+			);
+		});
 
+	}
+	list_stealth2(xctx)
+	{
+		if(xctx.length < 1)
+		{
+			return (
+				<tr id={"stealthctc_"+{xctx}}>
+					<td><Icon className="grey-star" name="fi-star"/></td>
+					<td>
+					No contacts yet!
+					</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0 bts</td>
+				</tr>
+			);
+		}
+		const {dashboardFilter} = this.state;
+		return xctx
+		.filter(a => {
+			if (!a) return false;
+			console.log(a.label);
+			return a.label.indexOf(dashboardFilter) !== -1;
+		}).map(xctc => {
+			return (
+				<tr key={xctc.label} id={"stealthctc_"+xctc.label}>
+					<td><Icon className="grey-star" name="fi-star"/></td>
+					<td style={{color: "#4690e2"}}>
+					<div style={{display: "flex"}}>
+					<img src={confidential_logo} style={{height: 17+"px",width: 17+"px", marginRight: 10}}/>
+					<b style={{paddingTop: 1}}>
+					<ContextMenuProvider id="menu_stealthC_dashboard">{xctc.label}</ContextMenuProvider>
+					</b>
+					</div>
+					</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0</td>
+					<td style={{textAlign: "right"}}>0 bts</td>
+				</tr>
+			);
+		});
+	}
 	render() {
 		let { width, showIgnored } = this.props;
 		const { dashboardFilter } = this.state;
@@ -226,7 +324,12 @@ class DashboardList extends React.Component {
 		let hiddenAccounts = showIgnored ? this._renderList(this.props.ignoredAccounts) : null;
 
 		let filterText = counterpart.translate("explorer.accounts.filter") + "...";
-
+		let Saccs = this.state.SDB.accounts;
+		let Sctcs = this.state.SDB.contacts;
+		let list_stealth;
+		let list_contacts;
+		list_stealth = this.list_stealth(Saccs);
+		list_contacts = this.list_stealth2(Sctcs);
 		return (
 			<div style={this.props.style}>
 				{!this.props.compact ? (
@@ -253,6 +356,36 @@ class DashboardList extends React.Component {
 						{showIgnored ? <tr style={{backgroundColor: "transparent"}} key="hidden"><td style={{height: 20}} colSpan="4"></td></tr> : null}
 						{hiddenAccounts}
 					</tbody>
+				</table>
+				<table className="table table-hover"style={{fontSize: "0.85rem"}}>
+				<thead>
+					<tr>
+						<th><Icon className="grey-star" name="fi-star"/></th>
+						<th>Stealth Account</th>
+						<th style={{textAlign: "right"}}>Transactions</th>
+						<th style={{textAlign: "right"}}>Blind Balance</th>
+						<th style={{textAlign: "right"}}>Stealth Balance</th>
+						<th style={{textAlign: "right"}}>Total Value</th>
+					</tr>
+				</thead>
+				<tbody>
+				{list_stealth}
+				</tbody>
+				</table>
+				<table className="table table-hover"style={{fontSize: "0.85rem"}}>
+				<thead>
+					<tr>
+						<th><Icon className="grey-star" name="fi-star"/></th>
+						<th>Stealth Contact</th>
+						<th style={{textAlign: "right"}}>Transactions</th>
+						<th style={{textAlign: "right"}}>Times Sent</th>
+						<th style={{textAlign: "right"}}>Times Received</th>
+						<th style={{textAlign: "right"}}>Received Total</th>
+					</tr>
+				</thead>
+				<tbody>
+				{list_contacts}
+				</tbody>
 				</table>
 			</div>
 		);

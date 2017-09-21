@@ -1,6 +1,6 @@
 import WalletUnlockActions from "actions/WalletUnlockActions";
 import WalletDb from "stores/WalletDb";
-import {Aes, ChainValidation, TransactionBuilder, TransactionHelper, ops, FetchChain, ChainStore} from "bitsharesjs/es";
+import {Aes, ChainValidation, TransactionBuilder, TransactionHelper, ops, FetchChain, ChainStore} from "agorise-bitsharesjs/es";
 
 class ApplicationApi {
 

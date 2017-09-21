@@ -14,7 +14,7 @@ import TransactionConfirmStore from "stores/TransactionConfirmStore";
 import LoadingIndicator from "../LoadingIndicator";
 import WalletActions from "actions/WalletActions";
 import Translate from "react-translate-component";
-import {ChainStore, FetchChain} from "bitsharesjs/es";
+import {ChainStore, FetchChain} from "agorise-bitsharesjs/es";
 import {BackupCreate} from "../Wallet/Backup";
 import ReactTooltip from "react-tooltip";
 import utils from "common/utils";
@@ -24,13 +24,11 @@ import TriSwitch from "stealth/Visual_Components/tri-switch";
 import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
+import {ContextMenuProvider, menuProvider } from "react-contextify";
 class CreateAccount extends React.Component {
     constructor() {
         super();
         this.state = {
-            add_stealth_contact: false,
-            StealthChecked: false,
-            createdstealth: false,
             validAccountName: false,
             accountName: "",
             validPassword: false,
@@ -41,7 +39,6 @@ class CreateAccount extends React.Component {
             step: 1
         };
         this.onFinishConfirm = this.onFinishConfirm.bind(this);
-        this.OnSwitchChange = this.OnSwitchChange.bind(this);
         this.accountNameInput = null;
     }
 
@@ -53,11 +50,17 @@ class CreateAccount extends React.Component {
     }
 
     componentDidMount() {
+        this.refs.NSC_SWITCH.refs.Background.addEventListener("click",this.OnSwitchChange.bind(this));
         ReactTooltip.rebuild();
+    }
+    componentWillUnmount()
+    {
+        this.refs.NSC_SWITCH.refs.Background.addEventListener("click",this.OnSwitchChange.bind(this));
     }
 
     shouldComponentUpdate(nextProps, nextState) {
         return !utils.are_equal_shallow(nextState, this.state);
+        
     }
 
     isValid() {
@@ -73,8 +76,8 @@ class CreateAccount extends React.Component {
     }
     text_select(selection)
     {
-        let T = [document.getElementById("state0"), document.getElementById("state1"), document.getElementById("state2")];
-        for(var i=0;i<3;i++)
+        let T = [document.getElementById("state0"), document.getElementById("state1")];
+        for(var i=0;i<2;i++)
         {
             if(selection == i)
             {
@@ -92,19 +95,15 @@ class CreateAccount extends React.Component {
         if(e.valid !== undefined) state.validAccountName = e.valid;
         if(e.value !== undefined) state.accountName = e.value;
         if (!this.state.show_identicon) state.show_identicon = true;
-        if((this.refs.NSC_SWITCH.state.selection === 0 && this.accountNameInput.getVisualValue()[0] === "@") || (this.refs.NSC_SWITCH.state.selection === 1 && this.accountNameInput.getVisualValue2() !== "" && this.accountNameInput.getVisualValue()[0] === "@"))
+        if(this.accountNameInput.getVisualValue()[0] === "@" && this.refs.NSC_SWITCH.state.selection === 0)
         {
-            console.log("TRIGGGERED: SELECTION("+this.refs.NSC_SWITCH.state.selection+")"+"val1"+this.accountNameInput.getVisualValue()[0]+"val2"+this.accountNameInput.getVisualValue2());
-            this.refs.NSC_SWITCH.handleChange();
-            this.text_select(this.refs.NSC_SWITCH.state.selection+1);
-        }
-        if(this.refs.NSC_SWITCH.state.selection === 2 && this.accountNameInput.getVisualValue2() === "")
-        {
+            clearInterval(this.refs.NSC_SWITCH.state.intervalid);
             this.refs.NSC_SWITCH.setState({selection: 1, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
             this.text_select(1);
         }
-        if(this.accountNameInput.getVisualValue()[0] !== "@" && this.accountNameInput.getVisualValue2() === "")
+        if(this.accountNameInput.getVisualValue()[0] !== "@" && this.refs.NSC_SWITCH.state.selection === 1)
         {
+            clearInterval(this.refs.NSC_SWITCH.state.intervalid);
             this.refs.NSC_SWITCH.setState({selection: 0, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
             this.text_select(0);
         }
@@ -190,15 +189,17 @@ class CreateAccount extends React.Component {
             let DB = new Stealth_DB;
             DB.associated_account = this.refs.selected_account.state.selected;
             DB.label = this.state.accountName;
+            let router = this.props.router;
             DB.Initialize().then(function()
             {
                 let ACC = new Stealth_Account();
                 ACC.new_account(DB.label, DB.associated_account);
                 DB.create_account(ACC);
+                router.push("/dashboard");
             }.bind(DB)).catch(function(result){console.log(result);});
         }
     }
-    Add_Stealth_Contact()
+/*    Add_Stealth_Contact()
     {
         this.setState({createdstealth: true});
         let DB = new Stealth_DB;
@@ -209,10 +210,36 @@ class CreateAccount extends React.Component {
             let CTC = new Stealth_Contact(DB.label,DB.pubkey);
             DB.add_contact(CTC);
         }.bind(DB)).catch(function(result){console.log(result);});
-    }
+    }*/
     OnSwitchChange()
     {
-        console.log("SWITCHED!");
+        let current_name = this.accountNameInput.getVisualValue();
+        if(current_name === undefined || current_name === null){current_name = "";}
+        if(current_name[0] !== "@")
+        {
+            this.accountNameInput.setValue("@"+current_name);
+            this.accountNameInput.setVisual("@"+current_name);
+            this.text_select(1);
+            clearInterval(this.refs.NSC_SWITCH.state.intervalid);
+            this.refs.NSC_SWITCH.setState({selection: 1, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
+        }
+        else
+        {
+            let name = "";
+            if(current_name !== "@")
+            {
+                for(var i = 1;i<current_name.length;i++)
+                {
+                    name+=current_name[i];
+                }
+            }
+            
+            this.accountNameInput.setValue(name);
+            this.accountNameInput.setVisual(name);
+            this.text_select(0);
+            clearInterval(this.refs.NSC_SWITCH.state.intervalid);
+            this.refs.NSC_SWITCH.setState({selection: 0, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
+        }
     }
     onSubmit(e) 
     {
@@ -230,16 +257,9 @@ class CreateAccount extends React.Component {
                 this.createWallet(password).then(() => this.createAccount(account_name));
             }
         }
-        else if(this.refs.NSC_SWITCH.state.selection === 1)
+        if(this.refs.NSC_SWITCH.state.selection === 1)
         {
             this.Create_Stealth_Account();
-        }
-        else
-        {
-            if(this.refs.NSC_SWITCH.state.selection !== undefined || this.refs.NSC_SWITCH.state.selection !== null)
-            {
-                this.Create_Stealth_Contact();
-            }
         }
     }
 
@@ -291,8 +311,11 @@ class CreateAccount extends React.Component {
                             ref="NSC_SWITCH"
                             label="Normal Account"
                             id="NSC_Button"
-                            text={["Normal Account","Stealth Account","Stealth Contact"]}
-                            onClick={this.OnSwitchChange}
+                            color_state= {[[204,204,204],[186,15,0]]}
+                            cpx = {[3,30]}
+                            positions = {2}
+                            text={["Normal Account","Blinded/Stealth Account"]}
+                            Auto={false}
                         />
                     )
                 }
@@ -363,8 +386,8 @@ class CreateAccount extends React.Component {
                 <p>{!hasWallet ? <Translate content="wallet.has_wallet" /> : null}</p>
                 
                 <Translate style={{textAlign: "left"}} component="p" content="wallet.create_account_text" />
-                <p><Translate content="wallet.stealth_create_account_hint" /></p>
-                <p><Translate content="wallet.stealth_create_contact_hint" /></p>
+                <p><b>Or</b>, you can create a <b>Stealth Account</b> by inserting a '<b>@</b>' before the name you desire for your <b>Stealth Account</b>.</p>
+                <p><b>Stealth Accounts</b> are capable of making <b>Blinded</b> or <b>Stealth</b> transactions which have a higher fee than regular transactions.</p>
                 {firstAccount ?
                     <Translate style={{textAlign: "left"}} component="p" content="wallet.first_account_paid" /> :
                     <Translate style={{textAlign: "left"}} component="p" content="wallet.not_first_account" />}
@@ -377,15 +400,12 @@ class CreateAccount extends React.Component {
                 } */}
                 </div>
                 <div id="state1" style={{display: "none",textAlign: "left"}}>
-                    <h4>You are now creating a Stealth account.</h4>
-                    <p>Stealth accounts must be associated to an LTM account.</p>
-                    <p>The process is really simple and no fee is required upon the creation of a stealth account.</p>
-                    <p>Stealth accounts are capable of blinded and stealth transactions which do require a higher fee than normal ones.</p>
+                    <h4>You are now creating a <b>Stealth Account</b>.</h4>
+                    <p>This process is really simple and no fee is required upon creating a <b>Stealth Account</b></p>
+                    <p>Simply type in your account name after the '<b>@</b>' and associate it to one of your normal accounts.</p>
+                    <p><b>Stealth Accounts</b> are capable of making <b>Blinded</b> or <b>Stealth</b> transactions which have a higher fee than regular transactions.</p>
                 </div>
-                <div id="state2" style={{display: "none"}}>
-                <h4>You are now creating a Stealth contact.</h4>
-                <p>Stealth contacts are added by choosing a label or a Name of your choice in the account name form, then copying the public key of the stealth account you wish to send funds to in the Public Key form.</p>
-                </div>
+
             </div>
         );
     }

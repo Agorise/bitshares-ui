@@ -1,4 +1,4 @@
-import {PrivateKey, key} from "bitsharesjs/es";
+import {PrivateKey, key} from "agorise-bitsharesjs/es";
 class Stealth_Account
 {
     constructor()
@@ -8,6 +8,17 @@ class Stealth_Account
         this.privatekey = "";
         this.publickey = "";
         this.account = "";
+    }
+    removeat(acc)
+    {
+        let result = "";
+        if(acc[0] !== "@")
+        {return acc;}
+        for(let i=1;i<acc.length;i++)
+        {
+            result+=acc[i];
+        }
+        return result;
     }
     load_account(label, brainkey,publickey,privatekey,account)
     {
@@ -22,7 +33,7 @@ class Stealth_Account
         if(label, account)
         {
             let dictionary = require("json-loader!common/dictionary_en.json");
-            this.label = label;
+            this.label = this.removeat(label);
             let nbrainkey = key.suggest_brain_key(dictionary.en);
             this.brainkey = nbrainkey;
             let proc = PrivateKey.fromSeed( key.normalize_brainKey(this.brainkey) );

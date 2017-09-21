@@ -11,7 +11,7 @@ import counterpart from "counterpart";
 import TransactionConfirmStore from "stores/TransactionConfirmStore";
 import { RecentTransactions } from "../Account/RecentTransactions";
 import Immutable from "immutable";
-import {ChainStore} from "bitsharesjs/es";
+import {ChainStore} from "agorise-bitsharesjs/es";
 import {connect} from "alt-react";
 import { checkFeeStatusAsync, checkBalance } from "common/trxHelper";
 import { debounce } from "lodash";
@@ -52,8 +52,6 @@ class Transfer extends React.Component {
     }
     static getInitialState() {
         let SDB = new Stealth_DB;
-        SDB.Initialize().then(function(){console.log("Loaded SDB!");}.bind(SDB));
-        console.log("SDB:"+SDB);
         return {
             from_name: "",
             to_name: "",
@@ -81,7 +79,6 @@ class Transfer extends React.Component {
         this.nestedRef = null;
         this._updateFee();
     }
-
     shouldComponentUpdate(np, ns) {
         let { asset_types: current_types } = this._getAvailableAssets();
         let { asset_types: next_asset_types } = this._getAvailableAssets(ns);
@@ -100,6 +97,13 @@ class Transfer extends React.Component {
                     });
                 }
             }
+        }
+        if(!this.state.SDB.initialized)
+        {
+            let SDB = this.state.SDB;
+            SDB.initialized = true;
+            this.state.SDB.Initialize();
+            this.setState({SDB: SDB});
         }
         return true;
     }
@@ -188,11 +192,19 @@ class Transfer extends React.Component {
     }
 
     fromChanged(from_name) {
+        if(from_name[0]==="@" && this.refs.NBS_SWITCH.state.selection === 0)
+        {
+            this.refs.NBS_SWITCH.handleChange();
+        }
         if (!from_name) this.setState({from_account: null});
         this.setState({from_name, error: null, propose: false, propose_account: ""});
     }
 
     toChanged(to_name) {
+        if(to_name[0]==="@" && this.refs.NBS_SWITCH.state.selection === 0)
+        {
+            this.refs.NBS_SWITCH.handleChange();
+        }
         this.setState({to_name, error: null});
     }
 
@@ -255,33 +267,29 @@ class Transfer extends React.Component {
             TransactionConfirmStore.unlisten(this.onTrxIncluded);
             TransactionConfirmStore.listen(this.onTrxIncluded);
         }).catch( e => {
-            let msg = e.message ? e.message.split( '\n' )[1] : null;
+            let msg = e.message ? e.message.split( "\n" )[1] : null;
             console.log( "error: ", e, msg);
             this.setState({error: msg});
         } );
     }
     Execute_Stealth_Transaction(e,Transaction_Type)
     {
-        let DB = new Stealth_DB;
-        let From = this.state.from;
-        let To = this.state.to;
-        let Asset = this.state.asset;
+        let DB = this.state.SDB;
+        let From = this.state.from_name;
+        let To = this.state.to_name;
+        let Asset = this.state.asset_id;
         let Ammount = this.state.ammount;
-        DB.Initialize().then(function()
-        {
-            let Transfer = new Stealth_Transfer(From, To, Asset, Ammount);
-
-        }.bind(DB).catch(function(result){console.log(result);}));
+        let TR = new Stealth_Transfer(DB,From, To, Asset, Ammount,Transaction_Type);
     }
-    Compute_Transaction_Type()
+    Compute_Transaction_Type(BUTTONTYPE)
     {
         let From_X = this.state.from_name;
         let To_X = this.state.to_name;
-        if(From_X[0] !="@" && To_X[0] != "@")
+        if(From_X[0] !="@" && To_X[0] != "@" && BUTTONTYPE === 0)
         {
             return 0;//normal
         }
-        if(From_X[0] == "@" || To_X == "@")
+        if(From_X[0] == "@" || To_X == "@" && BUTTONTYPE > 0)
         {
             if(this.refs.NBS_SWITCH.state.selection == 0)
             {
@@ -293,7 +301,7 @@ class Transfer extends React.Component {
     }
     Execute_Transaction(e,Transaction_Type)
     {
-        let normal_stealth_blind = this.Compute_Transaction_Type();
+        let normal_stealth_blind = this.Compute_Transaction_Type(Transaction_Type);
         switch(normal_stealth_blind)
         {
             case 0: // Normal.
@@ -317,6 +325,7 @@ class Transfer extends React.Component {
     onSubmit(e) {
         e.preventDefault();
         this.setState({error: null});
+        this.Execute_Transaction(e,this.refs.NBS_SWITCH.state.selection);
     }
 
     setNestedRef(ref) {
@@ -388,15 +397,12 @@ class Transfer extends React.Component {
         let {propose, from_account, to_account, asset, asset_id, propose_account, feeAmount,
             amount, error, to_name, from_name, memo, feeAsset, fee_asset_id, balanceError} = this.state;
         let from_my_account = AccountStore.isMyAccount(from_account) || from_name === this.props.passwordAccount || from_name[0] === "@";
-        console.log(from_name);
         if(from_account && ! from_my_account && ! propose ) {
             from_error = <span>
                 {counterpart.translate("account.errors.not_yours")}
                 &nbsp;(<a onClick={this.onPropose.bind(this, true)}>{counterpart.translate("propose")}</a>)
             </span>;
         }
-        
-
         let { asset_types, fee_asset_types } = this._getAvailableAssets();
         let balance = null;
 
@@ -455,6 +461,7 @@ class Transfer extends React.Component {
                                 account={to_name}
                                 size={60}
                                 tabIndex={tabIndex++}
+                                contacts={this.state.SDB.contacts}
                             />
                         </div>
                         {/*  A M O U N T   */}

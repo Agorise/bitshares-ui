@@ -1,0 +1,79 @@
+.react-contexify 
+{
+    position: fixed;
+    opacity: 0;
+    color: white;
+    user-select: none;
+    background-color: rgba(0, 0, 0, 0.8);
+    box-sizing: border-box;
+    box-shadow: rgba(0, 0, 0, 0.3) 0 10px 20px, #000000 0 0 0 1px;
+    padding: 0px 0;
+
+}
+.react-contexify__separator 
+{
+    float: left;
+    width: 100%;
+    height: 1px;
+    cursor: default;
+    margin: 4px 0;
+    background-color: rgba(0, 0, 0, 0.2); 
+}
+.react-contexify__item 
+{
+    color: white;
+    cursor: pointer; 
+    background-color: rgba(32, 34, 42, 0.88);
+
+}
+.react-contexify__item:last-child
+{
+    border-bottom: solid 1px #D20003;
+}
+
+.react-contexify__item:not(.react-contexify__item--disabled):hover .react-contexify__item__data 
+{
+    color: #009FF2;
+    background-color: #313131; 
+    
+}
+.react-contexify__item:not(.react-contexify__item--disabled):last-child:hover .react-contexify__item__data 
+{
+    color: #FF0000;
+    background-color: #313131; 
+    
+}
+.react-contexify__item--disabled 
+{
+    cursor: default;
+    opacity: .5; 
+}
+.react-contexify__item__data 
+{
+    min-width: 140px;
+    padding: 6px 12px;
+    display: inline-block;
+    text-align: left;
+    white-space: pre-wrap;
+    color: #FFFFFF; 
+}
+.react-contexify__item__icon 
+{
+      font-size: inherit;
+      margin-right: 5px; 
+}
+@keyframes react-contexify__fadeIn {
+  from {
+    opacity: 0; }
+  to {
+    opacity: 1; } }
+@keyframes react-contexify__fadeOut {
+  from {
+    opacity: 1; }
+  to {
+    opacity: 0; } }
+.react-contexify__will-enter--fade {
+  animation: react-contexify__fadeIn 0.3s ease; }
+
+.react-contexify__will-leave--fade {
+  animation: react-contexify__fadeOut 0.3s ease; }
