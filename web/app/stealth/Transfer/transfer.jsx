@@ -60,60 +60,92 @@ class Stealth_Transfer
             return false;
         }
     }
-    To_Stealth()
-    {
-        this.from = this.check_acc(this.from);
-        this.to = this.check_sacc(this.to);
-        if(this.to != "NOT_FOUND" && this.from != "NOT_FOUND")
-        {
-            let bop = new blind_confirmation;
-            let dictionary = require("json-loader!common/dictionary_en.json");
-            let seed = key.suggest_brain_key(dictionary); 
-            let one_time_key = PrivateKey.fromSeed(seed);
-            let to_key = this.to.publickey;
-            let secret = one_time_key.get_shared_secret(to_key);
-            let child = hash.sha256(secret);
-            let nonce = one_time_key.get_secret();//get_secret()? wtf
-            let blind_factor = hash.sha256(child);
-            let out = new blind_output;
-            out.from = from.get("id");
-            out.commitment = ECC_BLIND(blind_factor, this.ammount);
-            out.ammount = this.ammount;
-            // no range proof needed as it's only ONE transfer for now.
-            let conf_output = new blind_output;
-            conf_output.label = this.ammount;
-            conf_output.pub_key = to_key;
-            conf_output.decrypted_memo.ammount = ammount;
-            conf_output.decrypted_memo.blinding_factor = blind_factor;
-            conf_output.decrypted_memo.check = secret._hash[0];
-            conf_output.confirmation.one_time_key = one_time_key.get_public_key();
-            conf_output.confirmation.to = to_key;
-            conf_output.confirmation.encrypted_memo = {};//AESENCRYPT(secret, conf_output.decrypted_memo);
-            conf.output.confirmation_receipt = conf_output.confirmation;
-            bop.outputs.push(conf_output);
-            let tr = new TransactionBuilder();
-            tr.add_type_operation("transfer_to_blind",{
-                fee: {
-                    ammount: 0,
-                    asset_id: this.asset.get("id")
-                },
-                ammount: {
-                    ammount: this.ammount,
-                    asset_id: this.asset.get("id")
-                },
-                from: from.get("id"),
-                blinding_factor: blind_factor,
-                outputs: [bop]
-            });
-            tr.set_required_fees().then(() => {
-                tr.add_signer(pKey, pKey.toPublicKey().toPublicKeyString());
-                console.log("serialized transaction:", tr.serialize());
-            //tr.broadcast();
-            });
 
-        }
-        return false;//Something went wrong.
+   /**
+    *  Construct transaction to transfer a PUBLIC balance to BLIND
+    *  balance.
+    *
+    *  @return a blind_confirmation containing metadata about outputs and
+    *  the signed transaction ready-to-broadcast.
+    *
+    *  Patterned after wallet_api::transfer_to_blind() in wallet.cpp
+    *
+    *  Note: the function in wallet.cpp assumes responsibility of
+    *  transmitting. I prefer to separate that. In final form, this
+    *  function will NOT transmit. The caller will receive a signed TX and
+    *  assume responsibility for transmitting.
+    *
+    */    Public_To_Blind(FromAccount,        ///< Registered Account Object, such as
+                                        ///  returned by ChainStore.getAccount()
+                    AskingAddress,      ///< Asking Address as BTSbase58 string
+                    AssetString,
+                    Amount              ///< Amount of asset, numeric I think
+                   ) {
+        // TODO: Asserts on validity of inputs, maybe
+
+        let blindconf = new blind_confirmation; // will be return object
+                                                // if not error
+
+        //XX account_object from_account = my->get_account(from_account_id_or_name);
+        //XX fc::optional<asset_object> asset_obj = get_asset(asset_symbol);
+        //XX FC_ASSERT(asset_obj, "Could not find asset matching ${asset}",
+        //             ("asset", asset_symbol));
+
+        let bop = new transfer_to_blind_op;
+        bop.from = FromAccount.get("id");
+        
+        let one_time_key = key.get_random_key();
+        let to_key = PublicKey.fromPublicKeyString(AskingAddress);
+        let secret = one_time_key.get_shared_secret(to_key);
+        let child = hash.sha256(secret);
+        let nonce = one_time_key.get_secret();//get_secret()? wtf
+        let blind_factor = hash.sha256(child);
+        let out = new blind_output;
+        out.from = from.get("id");
+        out.commitment = ECC_BLIND(blind_factor, this.ammount);
+        out.ammount = this.ammount;
+        // no range proof needed as it's only ONE transfer for now.
+        let conf_output = new blind_output;
+        conf_output.label = this.ammount;
+        conf_output.pub_key = to_key;
+        conf_output.decrypted_memo.ammount = ammount;
+        conf_output.decrypted_memo.blinding_factor = blind_factor;
+        conf_output.decrypted_memo.check = secret._hash[0];
+        conf_output.confirmation.one_time_key = one_time_key.get_public_key();
+        conf_output.confirmation.to = to_key;
+        conf_output.confirmation.encrypted_memo = {};//AESENCRYPT(secret,
+                                                     //conf_output.decrypted_memo);
+        conf.output.confirmation_receipt = conf_output.confirmation;
+        bop.outputs.push(conf_output);
+        let tr = new TransactionBuilder();
+        tr.add_type_operation("transfer_to_blind",{
+            fee: {
+                ammount: 0,
+                asset_id: this.asset.get("id")
+            },
+            ammount: {
+                ammount: this.ammount,
+                asset_id: this.asset.get("id")
+            },
+            from: from.get("id"),
+            blinding_factor: blind_factor,
+            outputs: [bop]
+        });
+        tr.set_required_fees().then(() => {
+            tr.add_signer(pKey, pKey.toPublicKey().toPublicKeyString());
+            console.log("serialized transaction:", tr.serialize());
+            //tr.broadcast();
+        });
+        // TODO: devolve responsibility to broadcast
+        
+        return blindconf;
+        
     }
+
+    
+   /**
+    *
+    */
     From_Stealth()
     {
         this.from = this.check_sacc(this.from);

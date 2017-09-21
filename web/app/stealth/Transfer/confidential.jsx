@@ -10,8 +10,13 @@ import {PublicKey} from "bitsharesjs/es";
 import utils from "common/utils";
 
 /**
- *  Records the one_time_key and memo_data (encrypted) that, upon being
- *  packed and base58 encoded, becomes the TX receipt.
+ *  Records the one-time-key, to-key, and memo_data (encrypted) that, upon
+ *  being packed and base58 encoded, becomes the TX receipt.
+ *
+ *  NOTE: The OTK and ToPubKey are NOT encrypted, only the memo_data. Thus,
+ *  a receipt, if transmitted insecurely, identifies the Asking Address of
+ *  the recipient.  If the receipt can be separately correlated with either
+ *  the receiving address or the sender, then a lot of metadata is revealed.
  *
  *  from: confidential.hpp
  *    in: bitshares-core/libraries/chain/include/graphene/chain/protocol/
@@ -28,10 +33,6 @@ class stealth_confirmation
     // Needs methods to pack and unpack as base58 string
     //
 
-    // Hmmm... kinda looks like this doesn't get encrypted, only encoded,
-    // when turned into receipt.  So, receipts leak Asking Address and OTK
-    // info... which seems bad to me...
-    //
 }
 
 /**
@@ -55,15 +56,11 @@ class stealth_cx_memo_data
 
 
 /**
- *  Metadata surrounding a blind output.  (See also blind_output)
+ *  Metadata surrounding a blind output, for internal retention/use by
+ *  wallet.  (See also blind_output)
  *
  *  Contains the transaction Receipt which the sender must communicate to
  *  the recipient, and metadata to aid correlating receipt to recipient.
- *
- *  On the blockchain, outputs are contained within blind-operation
- *  transactions, and function similar to Bitcoin's UTXOs.  On the p2p
- *  network, outputs are indexed by the confirmation data and retrievable
- *  with API call database_api::get_blinded_balances(confirmation)
  *
  *  from: wallet.hpp (as blind_confirmation::output)
  *    in: bitshares-core/libraries/wallet/include/graphene/wallet/wallet.hpp
@@ -94,23 +91,86 @@ class blind_confirmation
 {
     constructor()
     {
-        this.output_meta = new blind_output_meta;
-        this.trx;
+        this.output_meta = new blind_output_meta;  // actually a vector of these
+        this.trx;   // signed trx
     }
 }
 
 
+/**
+ *  Represents a blind output (somewhat like a Bitcoin UTXO).  A blind
+ *  transaction will contain one or more of these blind outputs.
+ *
+ *  On the p2p network, outputs are indexed by the commitment
+ *  data and are retrievable with API call
+ *  database_api::get_blinded_balances(confirmation)
+ *
+ *  from: confidential.hpp
+ *    in: bitshares-core/libraries/chain/include/graphene/chain/protocol/
+ */
+class blind_output
+{
+    constructor()
+    {
+        this.commitment;    // fc::ecc::commitment_type
+        this.range_proof;   // range_proof_type (Only needed if >1
+                            // output in a TX)
+        this.owner;         // authority
+        this.stealth_memo;  // (optional) stealth_confirmation. Note: CLI
+                            // Wallet does not include these in the outputs
+                            // it produces. This is probably smart as they
+                            // leak the blind Asking Address.
+    }
+}
 
+
+/**
+ *  Represents a transfer_to_blind operation (Op-code 39), suitable be
+ *  included in a transaction for broadcast.
+ *
+ *  from: confidential.hpp
+ *    in: bitshares-core/libraries/chain/include/graphene/chain/protocol/
+ */
+class transfer_to_blind_op
+{
+    constructor(asset, bop, blind_factor)  // not sure I want ctor args
+    {
+        let precision = utils.get_asset_precision(asset.get("precision"));
+        this.fee_parameters.type = {
+            fee: 5*precision,
+            price_per_output: 5*precision
+        }; //will ponder this; attempt at embedded type; prolly remove
+        
+        this.fee = fee;             // asset type
+        this.ammount = ammount;     // asset type
+        this.from = from;           // account_id_type
+        this.blinding_factor = null;// blind_factor_type
+        this.outputs = null;        // vector<blind_output>
+    }
+
+    fee_payer() {return this.from;}
+    validate(){} //TODO
+    calculate_fee(/*TODO*/){/*TODO*/} // returns share_type 
+
+}
+
+/**
+ *  Unused, as far as I can tell.
+ *
+ *  from: confidential.hpp
+ *    in: bitshares-core/libraries/chain/include/graphene/chain/protocol/
+ */
 class blind_memo
 {
     constructor()
     {
-        this.from = []; //account_id_type
-        this.ammount = []; //share_type
-        this.message = []; //String
-        this.check = 0; //int
+        this.from =;      // account_id_type
+        this.ammount =;   // share_type
+        this.message =;   // string
+        this.check = 0;   // uint32
     }
 }
+
 class blind_input
 {
     constructor()
@@ -119,43 +179,14 @@ class blind_input
         this.owner = []; //authority
     }
 }
-class memo_data
-{
-    constructor()
-    {
-        this.from = null;
-        this.ammount = null;
-        this.blinding_factor = "";
-        this.commitment = "";
-        check = 0;
-    }
-}
-class blind_output_op
-{
-    constructor()
-    {
-        this.commitment = [];//Commitment type
-        this.range_proof = []; //Range proof type Only needed if range proof is higher than 1
-                            //For example for blind to blind ops
-        this.owner = [];
-        this.authority = [];
-    }
-}
-class transfer_to_blind_op
-{
-    constructor(asset, bop, blind_factor)
-    {
-        let precision = utils.get_asset_precision(asset.get("precision"));
-        this.fee_parameters.type = {
-            fee: 5*precision,
-            price_per_output: 5*precision
-        };
-        this.fee = fee;
-        this.ammount = ammount;
-        this.from = from;
-        this.blind_output = bop;
-        this.blinding_factor = blind_factor;
-        this.fee_payer = from;
-    }
-}
-export {blind_output,blind_output_op,blind_memo,blind_input,blind_confirmation,memo_data,stealth_confirmation,transfer_to_blind_op};
+
+export {
+    stealth_confirmation,
+    stealth_cx_memo_data,
+    blind_output_meta,
+    blind_confirmation,
+    blind_memo,
+    blind_input,
+    blind_output,
+    transfer_to_blind_op,
+};
