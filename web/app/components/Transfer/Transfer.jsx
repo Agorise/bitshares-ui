@@ -278,23 +278,30 @@ class Transfer extends React.Component {
         let From = this.state.from_name;
         let To = this.state.to_name;
         let Asset = this.state.asset_id;
-        let Ammount = this.state.ammount;
-        let TR = new Stealth_Transfer(DB,From, To, Asset, Ammount,Transaction_Type);
+        let Amount = this.state.amount;
+        let TR = new Stealth_Transfer(DB,From, To, Asset, Amount,Transaction_Type);
+        TR.To_Stealth(); //EEEE
     }
     Compute_Transaction_Type(BUTTONTYPE)
     {
-        let From_X = this.state.from_name;
-        let To_X = this.state.to_name;
-        if(From_X[0] !="@" && To_X[0] != "@" && BUTTONTYPE === 0)
-        {
-            return 0;//normal
+        let From_B = (this.state.from_name[0] == "@");
+        let To_B = (this.state.to_name[0] == "@");
+        if(!From_B) {                         // Public to...
+            if(!To_B && BUTTONTYPE === 0) {   //  ...to Public
+                return 0; // Normal
+            }
+            if(To_B && BUTTONTYPE > 0) {      //  ...to Blind/Stealth 
+                return 1; // Stealth
+            }
+            return 99; // Not ready yet...
         }
+        if(From_B && BUTTONTYPE > 0) {        // Hidden to...
+            return 99; // Not ready yet...
+        }
+        return 999; // Not defined...
+        // Remove... but what's the handleChange stuff?
         if(From_X[0] == "@" || To_X == "@" && BUTTONTYPE > 0)
         {
-            if(this.refs.NBS_SWITCH.state.selection == 0)
-            {
-                this.refs.NBS_SWITCH.handleChange();
-            }
             return 1; //stealth
         }
         return 0;
@@ -423,8 +430,8 @@ class Transfer extends React.Component {
 
         let propose_incomplete = propose && ! propose_account;
         let submitButtonClass = "button float-right no-margin";
-        if(!from_account || !to_account || !amount || amount === "0"|| !asset || from_error || propose_incomplete || balanceError)
-            submitButtonClass += " disabled";
+        //if(!from_account || !to_account || !amount || amount === "0"|| !asset || from_error || propose_incomplete || balanceError)
+        //    submitButtonClass += " disabled";
 
         let accountsList = Immutable.Set();
         accountsList = accountsList.add(from_account);
