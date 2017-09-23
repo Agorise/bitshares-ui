@@ -139,20 +139,23 @@ class AccountNameInput extends React.Component {
             this.render();
             //Assoc/Pay
             let Mimi = document.getElementById("AS-LABEL");
-            if(account_name != null)
+            if(Mimi)
             {
-                if(account_name[0]=="@")
+                if(account_name != null)
                 {
-                    Mimi.innerText="Associate with account:";
+                    if(account_name[0]=="@")
+                    {
+                        Mimi.innerText="Associate with account:";
+                    }
+                    else
+                    {
+                        Mimi.innerText="Pay with account:";
+                    }
                 }
                 else
                 {
                     Mimi.innerText="Pay with account:";
                 }
-            }
-            else
-            {
-                Mimi.innerText="Pay with account:";
             }
         }
         else

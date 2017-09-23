@@ -50,7 +50,13 @@ class CreateAccount extends React.Component {
     }
 
     componentDidMount() {
-        this.refs.NSC_SWITCH.refs.Background.addEventListener("click",this.OnSwitchChange.bind(this));
+        if(this)
+        {
+            if(this.refs.NSC_SWITCH)
+            {
+                this.refs.NSC_SWITCH.refs.Background.addEventListener("click",this.OnSwitchChange.bind(this));
+            }
+        }
         ReactTooltip.rebuild();
     }
     componentWillUnmount()
@@ -101,11 +107,14 @@ class CreateAccount extends React.Component {
             this.refs.NSC_SWITCH.setState({selection: 1, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
             this.text_select(1);
         }
-        if(this.accountNameInput.getVisualValue()[0] !== "@" && this.refs.NSC_SWITCH.state.selection === 1)
+        if(this.refs.NSC_SWITCH)
         {
-            clearInterval(this.refs.NSC_SWITCH.state.intervalid);
-            this.refs.NSC_SWITCH.setState({selection: 0, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
-            this.text_select(0);
+            if(this.accountNameInput.getVisualValue()[0] !== "@" && this.refs.NSC_SWITCH.state.selection === 1)
+            {
+                clearInterval(this.refs.NSC_SWITCH.state.intervalid);
+                this.refs.NSC_SWITCH.setState({selection: 0, intervalid: setInterval(this.refs.NSC_SWITCH.Animation_Logic.bind(this.refs.NSC_SWITCH),2)});
+                this.text_select(0);
+            }
         }
         this.setState(state);
     }
@@ -246,6 +255,17 @@ class CreateAccount extends React.Component {
         e.preventDefault();
         if (!this.isValid()) return;
         let account_name = this.accountNameInput.getValue();
+        if(!this.refs.NSC_SWITCH)
+        {
+            if (WalletDb.getWallet()) {
+                this.createAccount(account_name);
+            } 
+            else 
+            {
+                let password = this.refs.password.value();
+                this.createWallet(password).then(() => this.createAccount(account_name));
+            }
+        }
         if(this.refs.NSC_SWITCH.state.selection === 0)
         {
             if (WalletDb.getWallet()) {
@@ -281,6 +301,10 @@ class CreateAccount extends React.Component {
         let hasWallet = WalletDb.getWallet();
         let valid = this.isValid();
         let isLTM = false;
+        if(this.state.accountName[0] === "@")
+        {
+            isLTM = true;
+        }
         let registrar = registrar_account ? ChainStore.getAccount(registrar_account) : null;
         if (registrar) {
             if( registrar.get( "lifetime_referrer" ) == registrar.get( "id" ) ) {

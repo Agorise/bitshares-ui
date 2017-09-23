@@ -10,9 +10,9 @@ export const blockTradesAPIs = {
 };
 
 export const settingsAPIs = {
-    DEFAULT_WS_NODE: "wss://fake.automatic-selection.com",
+    DEFAULT_WS_NODE: "wss://node.testnet.bitshares.eu",
     WS_NODE_LIST: [
-        {url: "wss://fake.automatic-selection.com", location: {translate: "settings.api_closest"}},
+/*        {url: "wss://fake.automatic-selection.com", location: {translate: "settings.api_closest"}},
         {url: "ws://127.0.0.1:8090", location: "Locally hosted"},
         {url: "wss://bitshares.openledger.info/ws", location: "Nuremberg, Germany"},
         {url: "wss://eu.openledger.info/ws", location: "Berlin, Germany"},
@@ -24,9 +24,9 @@ export const settingsAPIs = {
         {url: "wss://secure.freedomledger.com/ws", location: "Toronto, Canada"},
         {url: "wss://dexnode.net/ws", location: "Dallas, USA"},
         {url: "wss://altcap.io/ws", location: "Paris, France"},
-        {url: "wss://bitshares.crypto.fans/ws", location: "Munich, Germany"},
+        {url: "wss://bitshares.crypto.fans/ws", location: "Munich, Germany"},*/
         {url: "wss://node.testnet.bitshares.eu", location: "Public Testnet Server (Frankfurt, Germany)"}
     ],
-    DEFAULT_FAUCET: "https://bitshares.openledger.info",
+    DEFAULT_FAUCET: "https://testnet.bitshares.eu",
     RPC_URL: "https://openledger.info/api/"
 };
