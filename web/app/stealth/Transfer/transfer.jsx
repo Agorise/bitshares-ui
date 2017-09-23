@@ -12,6 +12,7 @@ import {blind_output,blind_memo,blind_input,blind_output_meta,
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
         transfer_to_blind_op} from "stealth/Transfer/confidential";
 import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
+
 class Stealth_Transfer
 {
     constructor(stealth_DB,from,to,asset,amount,transaction_type)
@@ -39,10 +40,10 @@ class Stealth_Transfer
         }
         return "NOT_FOUND"; // No such acc
     }
-    check_sacc(name)
+    check_sacc(name)  // using as a check_sctc for now. 
     {
-        let accounts = this.saccs;
-        for(let i=0;i<accounts.length;i++)
+        let accounts = this.sctc; // Was: saccs;  Contact checking tho shld search
+        for(let i=0;i<accounts.length;i++)     // both acct and contact pool TODO
         {
             if(accounts[i].label == this.strip_symbol(name))
             {
@@ -92,11 +93,12 @@ class Stealth_Transfer
         this.from = this.check_acc(this.from);  // ChainStore acct obj
         this.to = this.check_sacc(this.to);     // stealth_DB acct obj
         if(this.to == "NOT_FOUND" || this.from == "NOT_FOUND") {
-            /**/ console.log("Ack! Spit!");
+            /**/ console.log("A contact was not found. Have you added it?");
             return false; // Something went wrong.
         }
-        /**/ console.log("Hi There! To_Stealth from ", this.from.get("name"),
-                         " to @", this.to.label, ".\n", this);
+        /**/ console.log("Hi There! Sending from Public to Blind!\n",
+                         " from ", this.from.get("name"),
+                         " to @", this.to.label, ".\nThis:", this);
 
         let blindconf = new blind_confirmation; // will be return object
                                                 // if not error
@@ -151,9 +153,6 @@ class Stealth_Transfer
         bop.blinding_factor = blind_factor;  // should be blind_sum but only one
         // TODO: bop.outputs needs to be sorted (if > 1)
         
-        /**/ console.log("blindconf:", blindconf, "bop:", bop);
-
-
         let tr = new TransactionBuilder();
         tr.add_type_operation("transfer_to_blind",{
             fee: {
@@ -168,18 +167,9 @@ class Stealth_Transfer
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });
-/*        tr.set_required_fees().then(() => {
-            console.log(tr);
-            tr.add_signer(pKey, pKey.toPublicKey().toPublicKeyString());
-            console.log("serialized transaction:", tr.serialize());
-            //tr.broadcast();
-        });
-*/
+
         let retval =  WalletDb.process_transaction(tr,null,true);
-        console.log(retval);
         return retval;
-        ack
-        return false;//Something went wrong.
 
     }
     
