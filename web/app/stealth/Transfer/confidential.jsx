@@ -6,7 +6,7 @@
  *  Mostly tranliterated from various sources within bitshares-core.
  *
  */
-import {PublicKey} from "bitsharesjs/es";
+import {PublicKey} from "agorise-bitsharesjs/es";
 import utils from "common/utils";
 
 /**
@@ -25,14 +25,14 @@ class stealth_confirmation
 {
     constructor()
     {
-        this.one_time_key = null;   // public_key_type (new PublicKey;?)
+        this.one_time_key = "TEST";   // public_key_type (new PublicKey;?)
         this.to = null;             // public_key_type 
         this.encryptedmemo = "";    // vector<char>
     }
     // TODO:
     // Needs methods to pack and unpack as base58 string
     //
-
+    toBase58() {return "abcdefghijjkmnop";} // TEMP TODO
 }
 
 /**
@@ -47,10 +47,10 @@ class stealth_cx_memo_data
     constructor()
     {
         this.from = null;           // (optional) public_key_type
-        this.ammount = null;        // asset (bitshares-core/.../asset.hpp)
+        this.amount = null;         // asset (bitshares-core/.../asset.hpp)
         this.blinding_factor = "";  // fc::sha256
         this.commitment = "";       // fc::ecc::commitment_type
-        check = 0;                  // uint32
+        this.check = 0;             // uint32
     }
 }
 
@@ -73,7 +73,8 @@ class blind_output_meta
         this.pub_key =  null; // public_key_type
         this.decrypted_memo = new stealth_cx_memo_data;
         this.confirmation = new stealth_confirmation;
-        this.auth = null;     // authority (bitshares-core/.../authority.hpp)
+        this.auth = {};       // authority (bitshares-core/.../authority.hpp)
+                              // Not needed for public-to-blind
         this.confirmation_receipt = "";  // base58 string I think...
                               // ...packed and encoded from this.confirmation
     }
@@ -112,11 +113,11 @@ class blind_output
 {
     constructor()
     {
-        this.commitment;    // fc::ecc::commitment_type
-        this.range_proof;   // range_proof_type (Only needed if >1
+        this.commitment="";    // fc::ecc::commitment_type  (33 bytes)
+        this.range_proof="";   // range_proof_type (Only needed if >1
                             // output in a TX)
-        this.owner;         // authority
-        this.stealth_memo;  // (optional) stealth_confirmation. Note: CLI
+        this.owner=null;         // authority
+        this.stealth_memo=new stealth_confirmation;  // (optional) stealth_confirmation. Note: CLI
                             // Wallet does not include these in the outputs
                             // it produces. This is probably smart as they
                             // leak the blind Asking Address.
@@ -133,22 +134,16 @@ class blind_output
  */
 class transfer_to_blind_op
 {
-    constructor(asset, bop, blind_factor)  // not sure I want ctor args
+    constructor()
     {
-        let precision = utils.get_asset_precision(asset.get("precision"));
-        this.fee_parameters.type = {
-            fee: 5*precision,
-            price_per_output: 5*precision
-        }; //will ponder this; attempt at embedded type; prolly remove
-        
-        this.fee = fee;             // asset type
-        this.ammount = ammount;     // asset type
-        this.from = from;           // account_id_type
+        this.fee = null;            // asset type
+        this.amount = null;         // asset type
+        this.from = null;           // account_id_type
         this.blinding_factor = null;// blind_factor_type
-        this.outputs = null;        // vector<blind_output>
+        this.outputs = [];          // vector<blind_output>
     }
 
-    fee_payer() {return this.from;}
+    fee_payer() {/* return this.from; */}
     validate(){} //TODO
     calculate_fee(/*TODO*/){/*TODO*/} // returns share_type 
 
@@ -164,9 +159,9 @@ class blind_memo
 {
     constructor()
     {
-        this.from =;      // account_id_type
-        this.ammount =;   // share_type
-        this.message =;   // string
+        this.from;        // account_id_type
+        this.ammount;     // share_type
+        this.message;     // string
         this.check = 0;   // uint32
     }
 }
