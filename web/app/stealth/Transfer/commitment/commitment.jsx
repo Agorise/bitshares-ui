@@ -1,20 +1,51 @@
 var BigInt = require("bigi");
+
+class secp256k1_fe_t
+{
+    constructor()
+    {
+        this.n = Array[4];
+    }
+    /* Unpacks a constant into a overlapping multi-limbed FE element. */
+    SECP256K1_FE_CONST_INNER = (d7, d6, d5, d4, d3, d2, d1, d0) => {
+        this.n = [
+            //(d0) | ((uint64_t)(d1) & 0xFFFFFUL) << 32
+            BigInt(d0.toString()).or(BigInt(d1)).shiftLeft(32),
+            BigInt(BigInt(d1.toString()).shiftRight(1).toString()).or(bi(d2.toString()).shiftLeft(1)).or(BigInt(BigInt(d3.toString()).and(BigInt.fromHex("FF")).toString()).shiftLeft(1)),
+            
+            ,
+
+        ]
+    }
+}
+/* @secp256k1_scalar_t
+ * USAGE:
+ * let x = new secp256k1
+ * x.Set(d7, d6, d5, d4, d3, d2, d1, d0) // Synonim of SECP256K1_SCALAR_CONST from secp256k1-zkp
+ */ 
 class secp256k1_scalar_t
 {
     constructor()
     {
-        this.d = [];
-        for(var i=0;i<4;i++)
-        {
-            d[i] = new BigInt(4,16);
-        }
-    }    
+        this.d = Array(4);
+    }
+    Set = (d7, d6, d5, d4, d3, d2, d1, d0) => { //SECP256K1_SCALAR_CONST
+        this.d = [ 
+            (BigInt(d1.toString()).shiftLeft(32).or(BigInt(d0.toString()))), 
+            (BigInt(d3.toString()).shiftLeft(32).or(BigInt(d2.toString()))), 
+            (BigInt(d5.toString()).shiftLeft(32).or(BigInt(d4.toString()))), 
+            (BigInt(d7.toString()).shiftLeft(32).or(BigInt(d6.toString())))
+        ];
+    }
 }
+
 class secp256k1_gej_t
 {
     constructor()
     {
-        
+        let x = new secp256k1_fe_t;
+        let y = new secp256k1_fe_t;
+        let infinity;
     }
 }
 class secp256k1_fe_storage_t
@@ -118,7 +149,7 @@ let secp256k1_context_create = function(flags)
     {
         ret.ecmult_gen2_ctx = secp256k1_ecmult_gen2_context_build();
     }
-    return true;
+    return ret;
 };     
 let secp256k1_pedersen_commit = function(blind,ammount)
 {
@@ -131,3 +162,26 @@ let ECC_BLIND = function(blinding_factor,ammount)
     return result;
 };
 export {ECC_BLIND};
+/*REMEMBER THE STRUGGLE!
+var bi = require("bigi")
+//let x = bigi("4")
+//((d1) >> 20) | ((uint64_t)(d2)) << 12 | ((uint64_t)(d3) & 0xFFUL) << 44,
+let d1 = 5;
+let d2 = 5;
+let d3 = 16; // if 4 14
+console.log( ((d1 >> 1) | d2 << 1 | ( d3 & 0xFF ) << 1).toString() );
+let D1 = bi(d1.toString());
+let D2 = bi(d2.toString());
+let D3 = bi(d3.toString());
+let p1 = bi(D1.shiftRight(1).toString());
+let p2 = bi(D3.and(bi.fromHex("FF")).toString());
+let calc = p1.or(D2).shiftLeft(1).or(p2).shiftLeft(1);
+console.log(calc.toString());
+let TESTS = {
+BigInts: p1.or(D2.shiftLeft(1)).or(p2.shiftLeft(1)).toString(),
+Normalo: ((d1 >> 1) | d2 << 1 | ( d3 & 0xFF ) << 1).toString(),
+}
+console.log(TESTS);
+let FINAL = bi(bi(d1.toString()).shiftRight(1).toString()).or(bi(d2.toString()).shiftLeft(1)).or(bi(bi(d3.toString()).and(bi.fromHex("FF")).toString()).shiftLeft(1)).toString();
+console.log("FINAL:"+FINAL);
+ */

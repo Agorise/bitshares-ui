@@ -241,7 +241,16 @@ class Transfer extends React.Component {
             TransactionConfirmStore.reset();
         }
     }
-
+    MYTEST()
+    {
+        var BigInt = require("bigi");
+        let result1 = 1 << 2 | 2;
+        let d0 = 1;
+        let d1 = 2;
+        let result2 = BigInt(d0.toString()).shiftLeft(32).or(BigInt(d1.toString()));
+        console.log("TEST RESULT 1: "+result1);
+        console.log("TEST RESULT 2: "+result2);
+    }
     onPropose(propose, e) {
         e.preventDefault();
         this.setState({ propose, propose_account: null });
