@@ -8,7 +8,8 @@ import ls from "common/localStorage";
 const STORAGE_KEY = "__graphene__";
 let ss = new ls(STORAGE_KEY);
 
-const autoSelectAPI = "wss://fake.automatic-selection.com";
+const autoSelectAPI = "wss://node.testnet.bitshares.eu";
+//const autoSelectAPI = "wss://fake.automatic-selection.com"; SHOULD BE THIS! TEST NET CAUTION!
 
 class ApiNode extends React.Component {
     constructor(props){

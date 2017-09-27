@@ -1,26 +1,62 @@
 var BigInt = require("bigi");
 
+/* @secp256k1_fe_t
+ * USAGE:
+ * let x = new secp256k1_fe_t
+ * x.Set(d7, d6, d5, d4, d3, d2, d1, d0) // Synonim of SECP256K1_FE_CONST_INNER from secp256k1-zkp
+ */
 class secp256k1_fe_t
 {
     constructor()
     {
-        this.n = Array[4];
+        this.n = Array(5);
     }
     /* Unpacks a constant into a overlapping multi-limbed FE element. */
-    SECP256K1_FE_CONST_INNER = (d7, d6, d5, d4, d3, d2, d1, d0) => {
+    Set = (d7, d6, d5, d4, d3, d2, d1, d0) => {
         this.n = [
-            //(d0) | ((uint64_t)(d1) & 0xFFFFFUL) << 32
             BigInt(d0.toString()).or(BigInt(d1)).shiftLeft(32),
-            BigInt(BigInt(d1.toString()).shiftRight(1).toString()).or(bi(d2.toString()).shiftLeft(1)).or(BigInt(BigInt(d3.toString()).and(BigInt.fromHex("FF")).toString()).shiftLeft(1)),
-            
-            ,
-
-        ]
+            BigInt(BigInt(d1.toString()).shiftRight(20).toString()).or(BigInt(d2.toString()).shiftLeft(12)).or(BigInt(BigInt(d3.toString()).and(BigInt.fromHex("FF")).toString()).shiftLeft(44)),
+            BigInt(d3.toString()).shiftRight(8).or(BigInt(d4.toString()).and(BigInt.fromHex("0FFFFFFF")).shiftLeft(24)).toString(),
+            BigInt(d4.toString()).shiftRight(28).or(BigInt(d5.toString()).shiftLeft(4).or(BigInt(d6.toString()).and(BigInt.fromHex("FFFF")).shiftLeft(36))).toString(),
+            BigInt(d6.toString()).shiftRight(16).or(BigInt(d7.toString()).shiftLeft(16)).toString()
+        ];
     }
 }
+
+/* @secp256k1_ge_t
+ * Description: A group element of the secp256k1 curve, in affine coordinates.
+ * let x = new secp256k1_ge_t;
+ * x.SetFinite(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) Synonim of SECP256K1_GE_CONST from secp256k1-zkp
+ * x.SetInfinite() Synonim of SECP256K1_GE_CONST_INFINITY from secp256k1-zkp
+ * Shortcuts:
+ * x.Set(params) = x.SetFinite(params)
+ * x.Seti() = x.SetInfinite()
+ */
+class secp256k1_ge_t
+{
+    constructor()
+    {
+        this.x = new secp256k1_fe_t;
+        this.y = new secp256k1_fe_t;
+        this.infinity = null; /* whether this represents the point at infinity */
+    }
+    SetFinite = (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) => {
+        this.x.Set(a, b, c, d, e, f, g, h);
+        this.y.Set(h, i, j, k, l, m, n, o, p);
+        this.infinity = 0;
+    }
+    SetInfinite = () => {
+        this.x.Set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.y.Set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.infinity = 1;
+    }
+    Set = SetFinite;
+    Seti = SetInfinite;
+}
+
 /* @secp256k1_scalar_t
  * USAGE:
- * let x = new secp256k1
+ * let x = new secp256k1_scalar_t
  * x.Set(d7, d6, d5, d4, d3, d2, d1, d0) // Synonim of SECP256K1_SCALAR_CONST from secp256k1-zkp
  */ 
 class secp256k1_scalar_t
@@ -34,33 +70,83 @@ class secp256k1_scalar_t
             (BigInt(d1.toString()).shiftLeft(32).or(BigInt(d0.toString()))), 
             (BigInt(d3.toString()).shiftLeft(32).or(BigInt(d2.toString()))), 
             (BigInt(d5.toString()).shiftLeft(32).or(BigInt(d4.toString()))), 
-            (BigInt(d7.toString()).shiftLeft(32).or(BigInt(d6.toString())))
+            (BigInt(d7.toString()).shiftLeft(32).or(BigInt(d6.toString()))),
         ];
     }
 }
 
+/* @secp256k1_gej_t
+ * Description: A group element of the secp256k1 curve, in jacobian coordinates.
+ * USAGE:
+ * let x = new secp256k1_gej_t
+ * x.Set_Finite(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) // Synonim of SECP256K1_GEJ_CONST from secp256k1-zkp
+ * x.Set_Infinite // Synonim of SECP256K1_GEJ_CONST_INFINITY from secp256k1-zkp
+ * Shortcuts:
+ * x.Set(params) = x.SetFinite(params)
+ * x.Seti() = x.setInfinite()
+ */ 
 class secp256k1_gej_t
 {
     constructor()
     {
-        let x = new secp256k1_fe_t;
-        let y = new secp256k1_fe_t;
-        let infinity;
+        this.x = new secp256k1_fe_t;
+        this.y = new secp256k1_fe_t;
+        this.z = new secp256k1_fe_t;
+        this.infinity = null;
     }
+    Set_Finite = (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) => {
+        this.x.Set(a,b,c,d,e,f,g,h); /* actual X: x/z^2 */
+        this.y.Set(i,j,k,l,m,n,o,p); /* actual Y: y/z^3 */
+        this.z.Set(0, 0, 0, 0, 0, 0, 0, 1);
+        this.infinity = 0; /* whether this represents the point at infinity */
+    }
+    Set_Infinite = () => {
+        this.x.Set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.y.Set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.z.Set(0, 0, 0, 0, 0, 0, 0, 0);
+        this.infinity = 1;
+    }
+    //Name Shortcuts
+    Set = this.Set_Finite;
+    Seti = this.Set_Ininite;
 }
+
+/* @secp256k1_fe_storage_t
+ * USAGE:
+ * let x = new secp256k1_fe_storage_t
+ * x.Set(d7, d6, d5, d4, d3, d2, d1, d0) // Synonim of SECP256K1_FE_STORAGE_CONST from secp256k1-zkp
+ */ 
 class secp256k1_fe_storage_t
 {
     constructor()
     {
-        this.n = new Array(8);
+        this.n = new Array(4);
+    }
+    Set = (d7, d6, d5, d4, d3, d2, d1, d0)=>{
+        this.n = [
+            BigInt(d0.toString()).or(BigInt(d1.toString()).shiftLeft(32)),
+            BigInt(d2.toString()).or(BigInt(d3.toString()).shiftLeft(32)),
+            BigInt(d4.toString()).or(BigInt(d5.toString()).shiftLeft(32)),
+            BigInt(d6.toString()).or(BigInt(d7.toString()).shiftLeft(32))
+        ];
     }
 }
+
+/* @secp256k1_ge_storage_t
+ * USAGE:
+ * let x = new secp256k1_ge_storage_t
+ * x.Set(a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) //Synonim of SECP256K1_GE_STORAGE_CONST from secp256k1-zkp
+ */ 
 class secp256k1_ge_storage_t
 {
     constructor()
     {
         this.x = new secp256k1_fe_storage_t;
         this.y = new secp256k1_fe_storage_t;
+    }
+    Set = (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) => {
+        this.x.Set(a, b, c, d, e, f, g, h);
+        this.y.Set(i, j, k, l, m, n, o, p);
     }
 }
 
@@ -94,12 +180,13 @@ class secp256k1_ecmult_gen_context_t
     */
     constructor()
     {
-        this.prec = []; /* prec[j][i] = 16^j * i * G + U_i */
+        this.prec = new Array(64); /* prec[j][i] = 16^j * i * G + U_i */
         for(var i=0;i<64;i++)
         {
+            this.prec[i] = new Array(16);
             for(var y=0;y<16;y++)
             {
-                prec[i][y] = new secp256k1_ge_storage_t;
+                this.prec[i][y] = new secp256k1_ge_storage_t;
             }
         }
         this.blind = new secp256k1_scalar_t;
@@ -108,7 +195,18 @@ class secp256k1_ecmult_gen_context_t
 }
 class secp256k1_ecmult_gen2_context_t
 {
-    //todo
+    constructor()
+    {
+        this.prec = new Array(16);
+        for(var i=0;i<16;i++)
+        {
+            this.prec[i] = new Array(16);
+            for(var y=0;y<16;y++)
+            {
+                this.prec[i][y] = new secp256k1_ge_storage_t;
+            }
+        }
+    }
 }
 class secp256k1_context_t
 {
@@ -162,7 +260,7 @@ let ECC_BLIND = function(blinding_factor,ammount)
     return result;
 };
 export {ECC_BLIND};
-/*REMEMBER THE STRUGGLE!
+/*REMEMBER THE STRUGGLE! b
 var bi = require("bigi")
 //let x = bigi("4")
 //((d1) >> 20) | ((uint64_t)(d2)) << 12 | ((uint64_t)(d3) & 0xFFUL) << 44,

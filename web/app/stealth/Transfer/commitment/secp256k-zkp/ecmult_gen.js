@@ -1,4 +1,4 @@
-import {SECP256K1_SCALAR_CONST,secp256k1_scalar_t} from "./scalar_4x641";
+import {secp256k1_scalar_t} from "./scalar_4x641";
 
 class secp256k1_ecmult_context_t
 {
@@ -30,12 +30,13 @@ class secp256k1_ecmult_gen_context_t
     */
     constructor()
     {
-        this.prec = []; /* prec[j][i] = 16^j * i * G + U_i */
+        this.prec = new Array(64); /* prec[j][i] = 16^j * i * G + U_i */
         for(var i=0;i<64;i++)
         {
+            this.prec[i] = new Array(16);
             for(var y=0;y<16;y++)
             {
-                prec[i][y] = new secp256k1_ge_storage_t;
+                this.prec[i][y] = new secp256k1_ge_storage_t;
             }
         }
         this.blind = new secp256k1_scalar_t;
@@ -44,5 +45,17 @@ class secp256k1_ecmult_gen_context_t
 }
 class secp256k1_ecmult_gen2_context_t
 {
-    //todo
+    constructor()
+    {
+        this.prec = new Array(16);
+        for(var i=0;i<16;i++)
+        {
+            this.prec[i] = new Array(16);
+            for(var y=0;y<16;y++)
+            {
+                this.prec[i][y] = new secp256k1_ge_storage_t;
+            }
+        }
+    }
 }
+export default {secp256k1_ecmult_context_t,secp256k1_ecmult_gen_context_t,secp256k1_ecmult_gen2_context_t};
