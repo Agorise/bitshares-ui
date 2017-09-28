@@ -5,16 +5,40 @@ import { Asset } from "common/MarketClasses";
 import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
-import {PrivateKey, PublicKey, key, hash, ChainStore,
-        TransactionBuilder} from "agorise-bitsharesjs/es";
-import {Aes} from "agorise-bitsharesjs/es/ecc";
+import {ChainStore, TransactionBuilder} from "agorise-bitsharesjs/es";
+import {PrivateKey, PublicKey, Aes, key, hash} from "agorise-bitsharesjs/es/ecc";
 import {blind_output,blind_memo,blind_input,blind_output_meta,
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
         transfer_to_blind_op} from "stealth/Transfer/confidential";
 import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
+import StealthZK from "stealth/Transfer/stealthzk.js";
 
+/**
+ *  Class encapsulates the credentials of an ACCOUNT, (stealth OR non-stealth)
+ *  that are needs to participate (as either sender OR receiver) in a stealth
+ *  transaction. This class adds some uniformity to the various account and
+ *  contact stores for all combinations of public/blind/stealth senders and
+ *  recipients.
+ */
+class Stealth_ID {
+
+    /**
+     *
+     */
+    constructor(account_text) {
+    }
+
+}
+
+/**
+ *  Wraps up a stealth transfer in a convenient class. 
+ */
 class Stealth_Transfer
 {
+
+    /*
+     *
+     */
     constructor(stealth_DB,from,to,asset,amount,transaction_type)
     {
         this.from = from;
@@ -24,11 +48,12 @@ class Stealth_Transfer
         this.transaction_type = transaction_type;
         this.saccs = stealth_DB.accounts;
         this.sctc = stealth_DB.contacts;
-        console.log(this);
+        console.log("Constructor", this);
     }
     check_acc(name)
     {
-         let accounts = AccountStore.getMyAccounts();
+        let accounts = AccountStore.getMyAccounts();
+        /**/ console.log("Check_acc",accounts);
         for(let i=0;i<accounts.length;i++)
         {
             if(accounts[i] == name)
@@ -40,6 +65,7 @@ class Stealth_Transfer
         }
         return "NOT_FOUND"; // No such acc
     }
+
     check_sacc(name)  // using as a check_sctc for now. 
     {
         let accounts = this.sctc; // Was: saccs;  Contact checking tho shld search
@@ -127,7 +153,7 @@ class Stealth_Transfer
                      "address_auths":[]};  // Does this work???
         //out.commitment = ECC_BLIND(blind_factor, amount); // TODO TODO
         //out.commitment = Buffer(Uint8Array(33));  // dummy val
-        out.commitment = new Uint8Array(33);    // dummy val
+        out.commitment = StealthZK.BlindCommit(blind_factor,amount);
         out.range_proof = new Uint8Array(0);    // Not needed for 1 output
 
 
