@@ -1,6 +1,12 @@
 import Stealth_Account from "./account";
 import Stealth_Contact from "./contact";
+import Blind_Receipt from "./blind_receipt";
 import Dexie from "dexie";
+
+/* Standards:
+ * Capital letters represent Objects.
+ * Lowercase letters represent strings.
+ */
 class Stealth_DB
 {
     constructor()
@@ -9,14 +15,14 @@ class Stealth_DB
         this.IDB = new Dexie("Stealth_Wallet");
         this.accounts = [];
         this.contacts = [];
-        this.receipts = [];
+        this.blind_receipts = [];
         this.associated_account = "";
         this.label = "";
         this.pubkey = "";
         this.IDB.version(1).stores({
-            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account",
+            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts",
             stealth_contacts: "id++,label,public_key",
-            receipts: "id++,account,receipt"
+            blind_receipts: "id++,account,receipt"
         });
     }
     Load_Accounts()
@@ -36,18 +42,12 @@ class Stealth_DB
             this.contacts.push(SCTC);
         });
     }
-    Load_Receipts()
-    {
-        let Receipts = this.IDB.receipts;
-        Receipts.each(r=>{
-            let RCPT = new Stealth_Receipt(r.account,r.receipt);
-            this.receipts.push(RCPT);
-        });
-    }
+
     Initialize()
     {
-        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Receipts()]);
+        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Blind_Receipts()]);
     }
+
     get_account(a)
     {
         for(var i=0;i<this.accounts.length;i++)
@@ -71,6 +71,7 @@ class Stealth_DB
         }
         return false;
     }
+
     create_account(A)
     {
         if(this.get_account(A.label) !== false){return false;}
@@ -91,28 +92,95 @@ class Stealth_DB
         .put({
             label: C.label,
             public_key: C.publickey
-        });
+        }).then(()=>{this.contacts.push(C);});
         return true;
     }
-    delete_account(A)
+
+    modify_account(A,what,to)
     {
-        let X = this.get_account(A);
-        if(X !== false)
+        if(A !== false)
         {
-            this.IDB.stealth_accounts.where("label").equals(A).delete();
+            this.IDB.stealth_accounts.where("label").equals(A.label).modify({what: to});
             return true;
         }
         return false;
     }
-    delete_contact(C)
+
+    delete_account(c)
     {
-        let X = this.get_contact(C);
+        let X = this.get_account(c);
         if(X !== false)
         {
-            this.IDB.stealth_contacts.where("label").equals(C).delete();
+            this.IDB.stealth_accounts.where("label").equals(c).delete();
             return true;
         }
         return false;
+    }
+
+    delete_contact(c)
+    {
+        let X = this.get_contact(c);
+        if(X !== false)
+        {
+            this.IDB.stealth_contacts.where("label").equals(c).delete();
+            return true;
+        }
+        return false;
+    }
+    
+    delete_receipt(r)//r = receipt string
+    {
+        let X = this.get_receipt(r);
+        if(X !== false)
+        {
+            this.IDB.blind_receipts.where("receipt").equals(r).delete();
+            return true;
+        }
+        return false;
+    }
+    /* @Log_Sent_Receipt(a,c,r)
+     * @a: account label with or without @ it doesn't matter.
+     * @c: contact label with or without @ it doesn't matter.
+     * @r: the receipt to send
+    */
+    Log_Sent_Receipt(a, c, r)
+    {
+        let stripat = (x) => { // To be converted to utility.
+            if(x !== null)
+            {
+                let result = "";
+                for(var i=1;i<x.length();i++)
+                {
+                    result+=x[i];
+                }
+                return result;
+            }
+        };
+        if(a === null){ return new Error("You haven't specified the account name you sent to."); }
+        if(a[0] === "@"){ a = stripat(a); }
+        if(c === null){return new Error("You haven't specified the contact you sent to.");}
+        if(c[0] === "@"){ c = stripat(c); }
+        let A = this.get_account(a);
+        let C = null;
+        if(A!==false)
+        {
+            if(c !== null && c !== 0)
+            {
+                if(c.length > 20)
+                {
+                    if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
+                    {
+                        C = get_contact(c);
+                        if(C === false)
+                        {
+                            return new Error("ERROR SENDING RECEIPT, the contact you have specified doesn't exist, perhaps you should create it first?");
+                        }
+                    }
+                }
+            }
+            A.sent_receipts.push(new Blind_Receipt(C,r));
+            modify_account(A,"sent_receipts",A.sent_receipts);
+        }
     }
 }
 /*USAGE: 

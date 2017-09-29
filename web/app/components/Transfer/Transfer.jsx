@@ -21,6 +21,7 @@ import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
 import Stealth_Transfer from "stealth/Transfer/transfer";
+import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -243,13 +244,9 @@ class Transfer extends React.Component {
     }
     MYTEST()
     {
-        var BigInt = require("bigi");
-        let result1 = 1 << 2 | 2;
-        let d0 = 1;
-        let d1 = 2;
-        let result2 = BigInt(d0.toString()).shiftLeft(32).or(BigInt(d1.toString()));
-        console.log("TEST RESULT 1: "+result1);
-        console.log("TEST RESULT 2: "+result2);
+        let receipt = "BASLDAWIJDOAWIHGOIHAWOGOIAWHGFHAWOGOHAWGHIAWHGOIWHAGWTFWAIPJFIAWJFPIOAWJFPOAWJFPOAWJFPJAWFPOAWJPFOJAWPOFJAWPOFJAWPOFJAPOWJFPOAWJFPOAWJF";
+        let to = "Dummy";
+        Sent_Receipt_Screen(receipt,to);
     }
     onPropose(propose, e) {
         e.preventDefault();

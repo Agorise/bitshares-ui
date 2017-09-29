@@ -42,6 +42,12 @@ class secp256k1_ecmult_gen_context_t
         this.blind = new secp256k1_scalar_t;
         this.initial = new secp256k1_gej_t;
     }
+    secp256k1_ecmult_gen_context_init = () =>{
+        this.prec = null;
+    }
+    secp256k1_ecmult_gen_context_build = () => {
+        //todo
+    }
 }
 class secp256k1_ecmult_gen2_context_t
 {
@@ -57,5 +63,11 @@ class secp256k1_ecmult_gen2_context_t
             }
         }
     }
+    secp256k1_ecmult_gen2_context_init = () => {
+        this.prec = null;
+    }
 }
+
+//static void secp256k1_ecmult_gen_context_init(secp256k1_ecmult_gen_context_t* ctx);
+
 export default {secp256k1_ecmult_context_t,secp256k1_ecmult_gen_context_t,secp256k1_ecmult_gen2_context_t};

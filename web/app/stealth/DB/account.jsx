@@ -1,4 +1,5 @@
 import {PrivateKey, key} from "agorise-bitsharesjs/es";
+import Blind_Receipt from "./blind_receipt";
 class Stealth_Account
 {
     constructor()
@@ -8,6 +9,7 @@ class Stealth_Account
         this.privatekey = "";
         this.publickey = "";
         this.account = "";
+        this.sent_receipts = [];
     }
     removeat(acc)
     {
@@ -46,6 +48,10 @@ class Stealth_Account
         {
             throw new Error("Stealth_Account - new_account: Bad Input");
         }
+    }
+    send_receipt(R)
+    {
+        this.sent_receipts.push(R);
     }
 }
 export default Stealth_Account;
