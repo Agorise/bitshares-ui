@@ -45,7 +45,7 @@ class Stealth_DB
 
     Initialize()
     {
-        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Blind_Receipts()]);
+        return Promise.all([this.Load_Accounts(),this.Load_Contacts()]);
     }
 
     get_account(a)
