@@ -29,10 +29,6 @@ class stealth_confirmation
         this.to = null;             // public_key_type 
         this.encryptedmemo = "";    // vector<char>
     }
-    // TODO:
-    // Needs methods to pack and unpack as base58 string
-    //
-    toBase58() {return "abcdefghijjkmnop";} // TEMP TODO
 }
 
 /**
