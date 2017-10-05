@@ -186,9 +186,13 @@ class Stealth_Transfer
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });
+        let txpromise =  WalletDb.process_transaction(tr,null,true);
+        // Don't know what to do with txpromise, if anything.
+        blindconf.trx = tr; // process_tr is async so don't know if trx really
+                            // gonna contain anything useful...
 
-        let retval =  WalletDb.process_transaction(tr,null,true);
-        return retval;
+        /***/ console.log("Returning blindconf", blindconf);
+        return blindconf;
 
     }
     
