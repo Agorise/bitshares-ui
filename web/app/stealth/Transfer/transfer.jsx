@@ -6,13 +6,14 @@ import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
 import {ChainStore, TransactionBuilder} from "agorise-bitsharesjs/es";
-import {PrivateKey, PublicKey, Aes, key, hash} from "agorise-bitsharesjs/es/ecc";
+import {PrivateKey, PublicKey, /*Aes,*/ key, hash} from "agorise-bitsharesjs/es/ecc";
 import {blind_output,blind_memo,blind_input,blind_output_meta,
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
         transfer_to_blind_op} from "stealth/Transfer/confidential";
 import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
 import StealthZK from "stealth/Transfer/stealthzk.js";
 import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
+
 
 /**
  *  Class encapsulates the credentials of an ACCOUNT, (stealth OR non-stealth)
@@ -127,12 +128,9 @@ class Stealth_Transfer
                          " from ", this.from.get("name"),
                          " to @", this.to.label, ".\nThis:", this);
 
-        let blindconf = new blind_confirmation; // will be return object
-                                                // if not error
-
-        let bop = new transfer_to_blind_op;
-        bop.from = this.from.get("id");
-
+        let bop = new transfer_to_blind_op;     // The "op" that we will build
+        let blindconf = new blind_confirmation; // This will be return object
+                                                // if no errors.
         let blinding_factors = [];
         let total_amount = 0;
         
@@ -143,48 +141,33 @@ class Stealth_Transfer
         let child = hash.sha256(secret);
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
         let blind_factor = hash.sha256(child);
-        let check32 = (new Uint32Array(secret.slice(0,4).buffer,0,1))[0];
-                        // Leading 4 bytes of secret as 32bit check word.
 
-        blinding_factors = [blind_factor];      // push_back when loop
         let amount = this.amount;
         let amountasset = {'amount':amount, 'asset_id':this.asset.get("id")};
         total_amount += amount;
+        blinding_factors = [blind_factor];      // push_back when loop
 
-        let out = new blind_output;
+        let out = new blind_output;             // One output per recipient
         out.owner = {"weight_threshold":1,"account_auths":[],
                      "key_auths":[[to_key.child(child),1]],
                      "address_auths":[]};
         out.commitment = StealthZK.BlindCommit(blind_factor,amount);
         out.range_proof = new Uint8Array(0);    // (Not needed for 1 output)
 
+        let meta = new blind_output_meta;       // Metadata for each output, to
+        meta.label = this.to.label;             // be kept in blindconf for our
+        meta.SetKeys(one_time_key, to_key);     // history/records.
+        meta.SetMemoData(amountasset, blind_factor, out.commitment);
+        meta.ComputeReceipt(secret);            // secret used as AES key/iv
 
-        let conf_out_meta = new blind_output_meta;
-        conf_out_meta.label = this.to.label;
-        conf_out_meta.pub_key = to_key;
-        conf_out_meta.decrypted_memo.amount = amountasset;
-        conf_out_meta.decrypted_memo.blinding_factor = blind_factor;
-        conf_out_meta.decrypted_memo.commitment = out.commitment;
-        conf_out_meta.decrypted_memo.check = check32;
-        conf_out_meta.confirmation.one_time_key = one_time_key.toPublicKey();
-        conf_out_meta.confirmation.to = to_key;
-        let aescoder = Aes.fromSha512(secret.toString('hex'));
-        let memo_data_flat = Serializer.
-            stealth_memo_data.
-            toBuffer(conf_out_meta.decrypted_memo);
-        conf_out_meta.confirmation.encrypted_memo =
-            aescoder.encrypt(memo_data_flat);
-        let receipthex = Serializer.
-            stealth_confirmation.
-            toHex(conf_out_meta.confirmation);
-        conf_out_meta.confirmation_receipt = receipthex;
-        /***/ console.log("Receipt:  ", receipthex);
+        out.stealth_memo = meta.confirmation;  // Omit???
+        blindconf.output_meta = [meta];        // needs to be push_back()
+        bop.outputs = [out];                   // needs to be push_back()
 
-        blindconf.output_meta = [conf_out_meta];  // needs to be push_back()
-        out.stealth_memo = conf_out_meta.confirmation;  // Omit???
-        bop.outputs = [out];    // needs to be push_back()
+        /***/ console.log("Receipt:  ", meta.confirmation_receipt);
         // Loop over recipients would end here
 
+        bop.from = this.from.get("id");
         bop.amount = total_amount;
         bop.blinding_factor = blind_factor;  // should be blind_sum but only one
         // TODO: bop.outputs needs to be sorted (if > 1)
@@ -196,10 +179,10 @@ class Stealth_Transfer
                 asset_id: "1.3.0"
             },
             amount: {
-                amount: total_amount,
+                amount: bop.amount,
                 asset_id: this.asset.get("id")
             },
-            from: this.from.get("id"),
+            from: bop.from,
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });

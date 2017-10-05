@@ -7,7 +7,10 @@
  *
  */
 import {PublicKey} from "agorise-bitsharesjs/es";
+import {Aes} from "agorise-bitsharesjs/es/ecc";
 import utils from "common/utils";
+import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
+const bs58 = require('bs58')
 
 /**
  *  Records the one-time-key, to-key, and memo_data (encrypted) that, upon
@@ -25,9 +28,24 @@ class stealth_confirmation
 {
     constructor()
     {
-        this.one_time_key = "TEST";   // public_key_type (new PublicKey;?)
+        this.one_time_key = "TEST"; // public_key_type (new PublicKey;?)
         this.to = null;             // public_key_type 
-        this.encryptedmemo = "";    // vector<char>
+        this.encrypted_memo = "";   // vector<char>
+    }
+
+    /**
+     *  This sets the key fields.  Both should be public keys.
+     */
+    SetPubKeys(one_time, to_key) {
+        this.one_time_key = one_time;
+        this.to = to_key;
+    }
+
+    /**
+     *  Serialize and express as base58 string.
+     */
+    Base58() {
+        return bs58.encode(Serializer.stealth_confirmation.toBuffer(this));
     }
 }
 
@@ -47,6 +65,33 @@ class stealth_cx_memo_data
         this.blinding_factor = "";  // fc::sha256
         this.commitment = "";       // fc::ecc::commitment_type
         this.check = 0;             // uint32
+    }
+
+    /**
+     *  Set all the required fields except the check word. If desired
+     *  to set 'from' field, set it explicitly separately.  The check
+     *  word should be set last, (typically by ComputeReceipt() in
+     *  blind_output_meta object).
+     */
+    Set(amount, blind, commit) {
+        this.amount = amount;
+        this.blinding_factor = blind;
+        this.commitment = commit;
+    }
+
+    /**
+     *  Serializes and encrypts memo data, returning as a Buffer.
+     *
+     *  @param secret is a 512-bit secret as a Buffer object (I
+     *         think), used to initialize key and iv of the aes
+     *         encoder.
+     */
+    EncryptWithSecret( secret ) {
+        let aescoder = Aes.fromSha512(secret.toString('hex'));
+        let memo_data_flat = Serializer.stealth_memo_data.toBuffer(this);
+        let retval = aescoder.encrypt(memo_data_flat);
+        aescoder.clear();
+        return retval;
     }
 }
 
@@ -74,6 +119,43 @@ class blind_output_meta
         this.confirmation_receipt = "";  // base58 string I think...
                               // ...packed and encoded from this.confirmation
     }
+
+    /**
+     *  Sets the one-time and to PubliKeys in the appropriate
+     *  locations in this struct and its member structs.  Both
+     *  parameters should be PublicKeys but we tolerate if one_time is
+     *  sent as PrivateKey.
+     */
+    SetKeys( one_time, to_key ) {
+        if (one_time.constructor.name == "PrivateKey") {
+            one_time = one_time.toPublicKey();} // (Drop private info)
+        this.pub_key = to_key;
+        this.confirmation.SetPubKeys(one_time, to_key);
+    }
+    
+    /**
+     *  Sets the primary fields on the decrypted_memo member. This is
+     *  the info that gets encrypted in the receipt. Does not set the
+     *  check-word; this gets set later by ComputeReceipt().
+     */
+    SetMemoData(amount, blind, commit) {
+        this.decrypted_memo.Set(amount, blind, commit);
+    }
+
+    /**
+     *  Using @a secret, we complete the memo data with a check word,
+     *  then encrypt the memo data, then base58 the confirmation
+     *  struct to compute confirmation_receipt.
+     */
+    ComputeReceipt(secret) {
+        let check32 = (new Uint32Array(secret.slice(0,4).buffer,0,1))[0];
+                        // Leading 4 bytes of secret as 32bit check word.
+        this.decrypted_memo.check = check32;
+        this.confirmation.encrypted_memo =
+            this.decrypted_memo.EncryptWithSecret(secret);
+        this.confirmation_receipt = this.confirmation.Base58();        
+    }
+
 }
 
 
