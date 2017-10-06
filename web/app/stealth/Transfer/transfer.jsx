@@ -22,17 +22,38 @@ import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js
  *  contact stores for all combinations of public/blind/stealth senders and
  *  recipients.
  */
-class StealthActor {
+class StealthID {
 
     /**
-     *
+     *  @arg label_or_account - if a string, assume stealth account or
+     *           contact, and subsequent args will/may be set.  If not string,
+     *           then assume a ChainStore Account object for a PUBLIC account.
      */
-    constructor(label, pubkeyobj, privkeyobj) {
-        this.label = label;
-        this.PublicKey = pubkeyobj;
-        this.PrivateKey = privkeyobj;
+    constructor(label_or_account, pubkeyobj, privkeyobj) {
+        if (typeof label_or_account === "string") {
+            this.label = label_or_account;
+            this.markedlabel = "@"+this.label;
+            this.PublicKey = pubkeyobj;
+            this.PrivateKey = privkeyobj;  // may be null or undefined
+            this.isblind = true;
+            // TODO Assert test that pubkey matches privkey?
+        } else {
+            this.account = label_or_account;
+            this.label = this.account.get("name");
+            this.markedlabel = this.label;
+            this.id = this.account.get("id");
+            this.isblind = false;
+        }
     }
 
+    static isStealthLabel(labelstring) {
+        return (labelstring[0]==="@");
+    }
+    static stripStealthMarker(labelstring) {
+        return (labelstring[0]==="@") ? labelstring.slice(1)
+                                      : labelstring;
+    }
+    
 }
 
 /**
@@ -42,36 +63,67 @@ class Stealth_Transfer
 {
 
     /*
-     *
      */
     constructor(stealth_DB,from,to,asset,amount,transaction_type)
     {
-        this.from = from;
-        this.to = to;
+        this.from = from;       // Taken as string but we promote below
+        this.to = to;           //   ''
         this.asset = asset;     // object, use .get("id"), eg, to get "1.3.0"
         this.amount = amount;   // in base units (ie 1.0 BTS = 100000)
         this.transaction_type = transaction_type;
         this.saccs = stealth_DB.accounts;
         this.sctc = stealth_DB.contacts;
-        console.log("Constructor", this);
-    }
-    check_acc(name)
-    {
-        let accounts = AccountStore.getMyAccounts();
-        /**/ console.log("Check_acc",accounts);
-        for(let i=0;i<accounts.length;i++)
-        {
-            if(accounts[i] == name)
-            {
-                return ChainStore.getAccount(accounts[i]);
-                // returns a ChainStore account object
-                // (e.g., can use .get("id") to get id property, etc.)
-            }
+
+        // Validate this.from: Needs to be spendable so must be either in
+        // regular accounts or stealth accounts.
+        if (StealthID.isStealthLabel(this.from)) {
+            this.from = this.findStealthAccountByName(this.from);
+        } else {
+            this.from = this.findMyRegularAccountByName(this.from);
         }
-        return "NOT_FOUND"; // No such acc
+
+        // Validate this.to: Can be from anywhere: regular accounts (my own or
+        // someone else's), stealth accounts, or stealth contacts.  We
+        // prioritize our own stealth account if a label is found in both
+        // stealth accounts and contacts.
+        if (StealthID.isStealthLabel(this.to)) {
+            try      { this.to = this.findStealthAccountByName(this.to); }
+            catch(e) { this.to = this.findStealthContactByName(this.to); }
+        } else {
+            this.to = this.findAnyRegularAccountByName(this.to);
+        }
+
+        console.log("Constructor after interpretation", this);
+
     }
 
-    find_sacc_matching_pubkey(pubkey) {
+    // PROPOSE TO MOVE the following account-finding functions to StealthDB
+    // class:
+    
+    findMyRegularAccountByName(name) {
+        let accounts = AccountStore.getMyAccounts();
+        for(let i=0;i<accounts.length;i++) {
+            if(accounts[i] == name) {
+                return new StealthID(ChainStore.getAccount(accounts[i]));}
+        }
+        throw "Could not find name in regular accounts";
+    }
+    findAnyRegularAccountByName(name) {
+        return new StealthID(ChainStore.getAccount(name));
+    }
+    findStealthAccountByName(name) {
+        let accounts = this.saccs;
+        let namelabel = StealthID.stripStealthMarker(name);
+        for(let i=0;i<accounts.length;i++) {
+            if(accounts[i].label == namelabel) {
+                return new StealthID(
+                    namelabel,
+                    PublicKey.fromStringOrThrow(accounts[i].publickey),
+                    PrivateKey.fromWif(accounts[i].privatekey));}
+        }
+        throw "Could not find name in stealth accounts";
+    }
+    findStealthAccountMatchingPubkey(pubkey) {
         // TODO tolerate string or object arg; for now assume obj
         let pubkeystring = pubkey.toString();
         let accounts = this.saccs; 
@@ -79,44 +131,24 @@ class Stealth_Transfer
             if(accounts[i].publickey == pubkey.toString()) {
                 let privkey = PrivateKey.fromWif(accounts[i].privatekey);
                 // TODO assert privkey PubKey matches accounts[i] pubkey
-                return new StealthActor(accounts[i].label,
-                                        privkey.toPublicKey(),
-                                        privkey);
-            }
+                return new StealthID(accounts[i].label,
+                                     privkey.toPublicKey(),
+                                     privkey);}
         }
-        throw new Error("No privkey for pubkey in saccs.");
+        throw new Error("No privkey for pubkey in saccs");
+    }
+    findStealthContactByName(name) {
+        let contacts = this.sctc;
+        let namelabel = StealthID.stripStealthMarker(name);
+        for(let i=0;i<contacts.length;i++) {
+            if(contacts[i].label == namelabel) {
+                return new StealthID(
+                    namelabel,
+                    PublicKey.fromStringOrThrow(contacts[i].publickey));}
+        }
+        throw new Error("Stealth contact not found");
     }
 
-    check_sacc(name)  // using as a check_sctc for now. 
-    {
-        let accounts = this.sctc; // Was: saccs;  Contact checking tho shld search
-        for(let i=0;i<accounts.length;i++)     // both acct and contact pool TODO
-        {
-            if(accounts[i].label == this.strip_symbol(name))
-            {
-                return accounts[i];
-                // returns an stealth_DB account object
-            }
-        }
-        return "NOT_FOUND"; // No such acc
-    }
-    strip_symbol(name)
-    {
-        if(name[0] == "@")
-        {
-            let result = "";
-            for(let i=1;i<name.length;i++)
-            {
-                result += name[i];
-            }
-            return result;
-        }
-        else
-        {
-            throw new Error("Stealth/Transfer: Problem at stripping symbol, no symbol to strip or null value passed");
-            return false;
-        }
-    }
 
    /**
     *  Construct transaction to transfer a PUBLIC balance to BLIND
@@ -133,19 +165,9 @@ class Stealth_Transfer
     *  assume responsibility for transmitting.
     *
     */
-    To_Stealth()
-    {
-        // Morph 'from' and 'to' from strings into objects:
-        // (Perhaps this should be done in constructor)
-        this.from = this.check_acc(this.from);  // ChainStore acct obj
-        this.to = this.check_sacc(this.to);     // stealth_DB acct obj
-        if(this.to == "NOT_FOUND" || this.from == "NOT_FOUND") {
-            /**/ console.log("A contact was not found. Have you added it?");
-            return false; // Something went wrong.
-        }
-        /**/ console.log("Hi There! Sending from Public to Blind!\n",
-                         " from ", this.from.get("name"),
-                         " to @", this.to.label, ".\nThis:", this);
+    To_Stealth() {
+        /**/ console.log("Public to Blind: from:", this.from.label,
+                         "to: ", this.to.markedlabel);
 
         let bop = new transfer_to_blind_op;     // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
@@ -155,7 +177,7 @@ class Stealth_Transfer
         
         // Loop over recipients (right now only support one)
         let one_time_key = key.get_random_key();
-        let to_key = PublicKey.fromPublicKeyString(this.to.publickey);
+        let to_key = this.to.PublicKey;
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
@@ -186,7 +208,7 @@ class Stealth_Transfer
         /***/ console.log("Receipt:  ", meta.confirmation_receipt);
         // Loop over recipients would end here
 
-        bop.from = this.from.get("id");
+        bop.from = this.from.id;
         bop.amount = total_amount;
         bop.blinding_factor = blind_factor;  // should be blind_sum but only one
         // TODO: bop.outputs needs to be sorted (if > 1)
@@ -207,7 +229,10 @@ class Stealth_Transfer
         });
         return WalletDb.process_transaction(tr,null,true)
             .then(()=>{blindconf.trx = tr; return blindconf;})
-            .catch((err)=>{return new Error("To_Stealth: WalletDb.process_transaction error: ",JSON.stringify(err));});
+            .catch((err)=>{
+                return new Error("To_Stealth: WalletDb.process_transaction error: ",
+                                 JSON.stringify(err));
+            });
     }
 
     /**
@@ -229,22 +254,32 @@ class Stealth_Transfer
                           memo);
         
         let result = {};        // TODO define object class
-        result.to_key = who.PublicKey;
+        result.to_key = who.PublicKey;  // Might want to use toString here
         result.to_label = "dummytest";
         result.amount = memo.amount;
-
-        // TODO confirm amount matches commitment
-
+        result.control_authority = {"weight_threshold":1,"account_auths":[],
+                                    "key_auths":[[child_priv_key.toPublicKey(),1]],
+                                    "address_auths":[]};;
+        result.auth_priv_key = child_priv_key;  // temp; should be pushed to DB
+        result.data = memo;
         
+        // TODO confirm amount matches commitment and other checks
+        // TODO pushing into DB
+        
+        return result;
         
     }
 
-    
+    /**
+     * From Blind to Public:
+     */
     From_Stealth()
     {
         this.from = this.check_sacc(this.from);
         this.to = this.check_acc(this.to);
     }
+
+
     Stealth_Transfer()
     {
         this.from = this.check_sacc(this.from);
