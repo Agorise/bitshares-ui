@@ -292,8 +292,8 @@ class Transfer extends React.Component {
         let Transfer = new Stealth_Transfer(DB,From, To, AssetObj, Amount,Transaction_Type);
         Transfer.To_Stealth()
         .then((r)=>{
-            //DB.Log_Sent_Receipt(From,r.output_meta[0].confirmation_receipt,To);
             Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,To);
+            DB.Log_Sent_Receipt(From,To,r.output_meta[0].confirmation_receipt,Amount);
         })
         .catch((x)=>{
             console.log(x);

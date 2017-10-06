@@ -2,7 +2,7 @@ import Stealth_Account from "./account";
 import Stealth_Contact from "./contact";
 import Blind_Receipt from "./blind_receipt";
 import Dexie from "dexie";
-
+import AccountStore from "stores/AccountStore";
 /* Standards:
  * Capital letters represent Objects.
  * Lowercase letters represent strings.
@@ -15,14 +15,14 @@ class Stealth_DB
         this.IDB = new Dexie("Stealth_Wallet");
         this.accounts = [];
         this.contacts = [];
-        this.blind_receipts = [];
+        this.sent_pbreceipts = [];
         this.associated_account = "";
         this.label = "";
         this.pubkey = "";
         this.IDB.version(1).stores({
             stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts",
             stealth_contacts: "id++,label,public_key",
-            blind_receipts: "id++,account,receipt"
+            sent_pbreceipts: "id++,from,to,receipt,value"
         });
     }
     Load_Accounts()
@@ -42,10 +42,17 @@ class Stealth_DB
             this.contacts.push(SCTC);
         });
     }
-
+    Load_Sent_PBReceipts()
+    {
+        let Receipts = this.IDB.sent_pbreceipts;
+        return Receipts.each(r=>{
+            let RCPT = [r.from, new Blind_Receipt(r.to,r.receipt,r.value)];
+            this.sent_pbreceipts.push(RCPT);
+        });
+    }
     Initialize()
     {
-        return Promise.all([this.Load_Accounts(),this.Load_Contacts()]);
+        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Sent_PBReceipts()]);
     }
 
     get_account(a)
@@ -81,7 +88,8 @@ class Stealth_DB
             brain_key: A.brainkey,
             private_key: A.privatekey,
             public_key: A.publickey,
-            associated_account: A.account
+            associated_account: A.account,
+            sent_receipts: []
         }).then(()=>{this.accounts.push(A);});
         return true;
     }
@@ -95,12 +103,23 @@ class Stealth_DB
         }).then(()=>{this.contacts.push(C);});
         return true;
     }
-
+    create_sent_pbreceipt(a,R)
+    {
+        this.IDB.sent_pbreceipts
+        .put({
+            from: a,
+            to: R.associated,
+            receipt: R.receipt,
+            value: R.value
+        }).then(()=>{this.sent_pbreceipts.push([a,R]);});
+        return true;
+    }
     modify_account(A,what,to)
     {
-        if(A !== false)
+        if(A !== false && A!==null)
         {
             this.IDB.stealth_accounts.where("label").equals(A.label).modify({what: to});
+            this.Load_Accounts();
             return true;
         }
         return false;
@@ -143,44 +162,42 @@ class Stealth_DB
      * @c: contact label with or without @ it doesn't matter.
      * @r: the receipt to send
     */
-    Log_Sent_Receipt(a, c, r)
+    Is_Public(a)
     {
-        let stripat = (x) => { // To be converted to utility.
-            if(x !== null)
-            {
-                let result = "";
-                for(var i=1;i<x.length();i++)
-                {
-                    result+=x[i];
-                }
-                return result;
-            }
-        };
-        if(a === null){ return new Error("You haven't specified the account name you sent to."); }
-        if(a[0] === "@"){ a = stripat(a); }
-        if(c === null){return new Error("You haven't specified the contact you sent to.");}
-        if(c[0] === "@"){ c = stripat(c); }
-        let A = this.get_account(a);
-        let C = null;
-        if(A!==false)
+        let accs = AccountStore.getMyAccounts();
+        for(var i=0;i<accs.length;i++)
         {
-            if(c !== null && c !== 0)
-            {
-                if(c.length > 20)
-                {
-                    if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
-                    {
-                        C = get_contact(c);
-                        if(C === false)
-                        {
-                            return new Error("ERROR SENDING RECEIPT, the contact you have specified doesn't exist, perhaps you should create it first?");
-                        }
-                    }
-                }
-            }
-            A.sent_receipts.push(new Blind_Receipt(C,r));
-            modify_account(A,"sent_receipts",A.sent_receipts);
+            if(a == accs[i]) return accs[i];
         }
+        return false;
+    }
+    stripat(x)
+    {
+        if(x !== null)
+        {
+            let result = "";
+            for(var i=1;i<x.length;i++)
+            {
+                result+=x[i];
+            }
+            return result;
+        }
+        return false;
+    }
+    Log_Sent_Receipt(a, c, r, v)
+    {
+        console.log("LOGGING SENT RECEIPT A:"+a+" c:"+c+" r:"+r+" v:"+v);
+        if(a === null){ return new Error("You haven't specified the account name you sent to."); }
+        if(a[0] === "@"){ a = this.stripat(a); }
+        if(c === null){return new Error("You haven't specified the contact you sent to.");}
+        if(c[0] === "@"){ c = this.stripat(c); }
+        let A = null; let Apublic = false;
+        let C = null; let Cpublic = false;
+        if(this.Is_Public(a)){Apublic = true; A=a;}else{A = this.get_account(a);}
+        if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
+        {if(this.Is_Public(c)){Cpublic = true;C=c;}else{C = this.get_contact(c);}}else{C = c;}
+        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v));}//Public To Stealth
+        if(Apublic && Cpublic){A.sent_receipts.push(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts);} //Stealth To Stealth
     }
 }
 /*USAGE: 
