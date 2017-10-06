@@ -143,7 +143,7 @@ class Stealth_Transfer
         let blind_factor = hash.sha256(child);
 
         let amount = this.amount;
-        let amountasset = {'amount':amount, 'asset_id':this.asset.get("id")};
+        let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
         total_amount += amount;
         blinding_factors = [blind_factor];      // push_back when loop
 
@@ -186,14 +186,9 @@ class Stealth_Transfer
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });
-        let txpromise =  WalletDb.process_transaction(tr,null,true);
-        // Don't know what to do with txpromise, if anything.
-        blindconf.trx = tr; // process_tr is async so don't know if trx really
-                            // gonna contain anything useful...
-
-        /***/ console.log("Returning blindconf", blindconf);
-        return blindconf;
-
+        return WalletDb.process_transaction(tr,null,true)
+            .then(()=>{blindconf.trx = tr; return blindconf;})
+            .catch((err)=>{return new Error("To_Stealth: WalletDb.process_transaction error: ",JSON.stringify(err));});
     }
     
     From_Stealth()

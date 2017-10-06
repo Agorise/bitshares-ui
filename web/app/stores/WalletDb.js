@@ -62,16 +62,7 @@ class WalletDb extends BaseStore {
             console.error(e);
         }
     }
-    create_stealth_wallet()
-    {
-        var db = openDatabase("Stealth_Wallet", "1.0", "Stealth Keys", 2 * 1024 * 1024);
-        db.transaction(function (tx) {
-            tx.executeSql("CREATE TABLE IF NOT EXISTS stealth_accounts (label unique, bkey, publickey, privatekey, account)");
-        });
-        db.transaction(function (tx) {
-            tx.executeSql("CREATE TABLE IF NOT EXISTS stealth_labels (label unique, pubkey)");
-        });
-    }
+
     getWallet() {
         return this.state.wallet;
     }

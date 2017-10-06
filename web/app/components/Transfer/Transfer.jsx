@@ -289,8 +289,15 @@ class Transfer extends React.Component {
         let To = this.state.to_name;
         let AssetObj = this.state.asset;
         let Amount = sendAmount.getAmount();
-        let TR = new Stealth_Transfer(DB,From, To, AssetObj, Amount,Transaction_Type);
-        TR.To_Stealth(); // TODO: dispatch to not just Public-to-Stealth
+        let Transfer = new Stealth_Transfer(DB,From, To, AssetObj, Amount,Transaction_Type);
+        Transfer.To_Stealth()
+        .then((r)=>{
+            //DB.Log_Sent_Receipt(From,r.output_meta[0].confirmation_receipt,To);
+            Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,To);
+        })
+        .catch((x)=>{
+            console.log(x);
+        });
     }
     Compute_Transaction_Type(BUTTONTYPE)
     {
