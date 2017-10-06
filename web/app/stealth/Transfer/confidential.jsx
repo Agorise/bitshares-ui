@@ -28,9 +28,9 @@ class stealth_confirmation
 {
     constructor()
     {
-        this.one_time_key = "TEST"; // public_key_type (new PublicKey;?)
-        this.to = null;             // public_key_type 
-        this.encrypted_memo = "";   // vector<char>
+        this.one_time_key = null;   // PublicKey object
+        this.to = null;             // PublicKey object
+        this.encrypted_memo = null; // Buffer
     }
 
     /**
@@ -47,11 +47,18 @@ class stealth_confirmation
     Base58() {
         return bs58.encode(Serializer.stealth_confirmation.toBuffer(this));
     }
+
+    ReadBase58(rcpt_txt) {
+        let tmp = Serializer.stealth_confirmation.fromBuffer(bs58.decode(rcpt_txt));
+        this.one_time_key = tmp.one_time_key;
+        this.to = tmp.to;
+        this.encrypted_memo = tmp.encrypted_memo;
+    }
 }
 
 /**
  *  Data the recipient needs in order to spend an output that they have
- *  reveived. (Encrypted form gets stored inside stealth_confirmation.)
+ *  received. (Encrypted form gets stored inside stealth_confirmation.)
  *
  *  from: confidential.hpp (as stealth_confirmation::memo_data)
  *    in: bitshares-core/libraries/chain/include/graphene/chain/protocol/
@@ -92,6 +99,18 @@ class stealth_cx_memo_data
         let retval = aescoder.encrypt(memo_data_flat);
         aescoder.clear();
         return retval;
+    }
+
+    Decrypt(encrypted, secret) {
+        let aescoder = Aes.fromSha512(secret.toString('hex'));
+        let memo_data_flat = aescoder.decrypt(encrypted);
+        let memo = Serializer.stealth_memo_data.fromBuffer(memo_data_flat);
+        this.from = memo.from;
+        this.amount = memo.amount;
+        this.blinding_factor = memo.blinding_factor;
+        this.commitment = memo.commitment;
+        this.check = memo.check;
+        aescoder.clear();
     }
 }
 

@@ -22,12 +22,15 @@ import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js
  *  contact stores for all combinations of public/blind/stealth senders and
  *  recipients.
  */
-class Stealth_ID {
+class StealthActor {
 
     /**
      *
      */
-    constructor(account_text) {
+    constructor(label, pubkeyobj, privkeyobj) {
+        this.label = label;
+        this.PublicKey = pubkeyobj;
+        this.PrivateKey = privkeyobj;
     }
 
 }
@@ -66,6 +69,22 @@ class Stealth_Transfer
             }
         }
         return "NOT_FOUND"; // No such acc
+    }
+
+    find_sacc_matching_pubkey(pubkey) {
+        // TODO tolerate string or object arg; for now assume obj
+        let pubkeystring = pubkey.toString();
+        let accounts = this.saccs; 
+        for(let i=0;i<accounts.length;i++) {
+            if(accounts[i].publickey == pubkey.toString()) {
+                let privkey = PrivateKey.fromWif(accounts[i].privatekey);
+                // TODO assert privkey PubKey matches accounts[i] pubkey
+                return new StealthActor(accounts[i].label,
+                                        privkey.toPublicKey(),
+                                        privkey);
+            }
+        }
+        throw new Error("No privkey for pubkey in saccs.");
     }
 
     check_sacc(name)  // using as a check_sctc for now. 
@@ -138,7 +157,7 @@ class Stealth_Transfer
         let one_time_key = key.get_random_key();
         let to_key = PublicKey.fromPublicKeyString(this.to.publickey);
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
-        let child = hash.sha256(secret);
+        let child = hash.sha256(secret);        // 256-bit pub/priv key offset
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
         let blind_factor = hash.sha256(child);
 
@@ -190,6 +209,36 @@ class Stealth_Transfer
             .then(()=>{blindconf.trx = tr; return blindconf;})
             .catch((err)=>{return new Error("To_Stealth: WalletDb.process_transaction error: ",JSON.stringify(err));});
     }
+
+    /**
+     *  Patterned after wallet_api::receive_blind_transfer() in wallet.cpp.
+     */
+    Receive_Blind_Transfer (receipt_txt) {
+        let confirmation = new stealth_confirmation();
+        confirmation.ReadBase58(receipt_txt);
+        let who = this.find_sacc_matching_pubkey(confirmation.to);
+        let secret = who.PrivateKey.get_shared_secret(
+            confirmation.one_time_key);         // 512-bits for aes key/iv
+        let child = hash.sha256(secret);        // 256-bit pub/priv key offset
+        let child_priv_key = who.PrivateKey.child(child); // Sender can't know
+        let memo = new stealth_cx_memo_data;
+        memo.Decrypt(confirmation.encrypted_memo, secret);
+        /***/ console.log("Receiving: ", "asking,rcving,memo ",
+                          who,
+                          child_priv_key.toPublicKey(),
+                          memo);
+        
+        let result = {};        // TODO define object class
+        result.to_key = who.PublicKey;
+        result.to_label = "dummytest";
+        result.amount = memo.amount;
+
+        // TODO confirm amount matches commitment
+
+        
+        
+    }
+
     
     From_Stealth()
     {
