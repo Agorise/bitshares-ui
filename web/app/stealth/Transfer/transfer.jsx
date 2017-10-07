@@ -73,7 +73,10 @@ class Stealth_Transfer
         this.transaction_type = transaction_type;
         this.saccs = stealth_DB.accounts;
         this.sctc = stealth_DB.contacts;
-
+        this.messagetxt = "";   // The memo field; Generally ignored for
+                                // stealth TX but gonna temporarily use it to
+                                // pass receipt text.
+        
         // Validate this.from: Needs to be spendable so must be either in
         // regular accounts or stealth accounts.
         if (StealthID.isStealthLabel(this.from)) {
@@ -150,7 +153,35 @@ class Stealth_Transfer
     }
 
 
-   /**
+    /**
+     *  A mis-named dispatcher function (preserving call from
+     *  components/Transfer). *TEMP*
+     */
+    To_Stealth() {
+        return this.Transfer();
+    }
+
+    /**
+     *  Stealth Transfer dispatcher function.  Decides which TX function to
+     *  call based on TX direction {Blind,Stealth}<-->{Public,Blind,Stealth}.
+     */
+    Transfer() {
+        if (this.from.isblind) {
+            if (this.to.isblind) {
+                return this.Blind_to_Blind();
+            } else {
+                return this.Blind_to_Public();
+            }            
+        } else {
+            if (this.to.isblind) {
+                return this.Public_to_Blind();
+            } else {
+                throw new Error("Public to Public not handled here");
+            }
+        }
+    }
+    
+    /**
     *  Construct transaction to transfer a PUBLIC balance to BLIND
     *  balance.
     *
@@ -165,10 +196,9 @@ class Stealth_Transfer
     *  assume responsibility for transmitting.
     *
     */
-    To_Stealth() {
+    Public_to_Blind() {
         /**/ console.log("Public to Blind: from:", this.from.label,
                          "to: ", this.to.markedlabel);
-
         let bop = new transfer_to_blind_op;     // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
@@ -237,11 +267,14 @@ class Stealth_Transfer
 
     /**
      *  Patterned after wallet_api::receive_blind_transfer() in wallet.cpp.
+     *
+     *  This maybe should be static but stealth account references need to be
+     *  moved to StealthDB class first.
      */
     Receive_Blind_Transfer (receipt_txt) {
         let confirmation = new stealth_confirmation();
         confirmation.ReadBase58(receipt_txt);
-        let who = this.find_sacc_matching_pubkey(confirmation.to);
+        let who = this.findStealthAccountMatchingPubkey(confirmation.to);
         let secret = who.PrivateKey.get_shared_secret(
             confirmation.one_time_key);         // 512-bits for aes key/iv
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
@@ -273,8 +306,8 @@ class Stealth_Transfer
     /**
      * From Blind to Public:
      */
-    From_Stealth()
-    {
+    Blind_to_Public() {
+        /**/console.log("Memo is",this.messagetxt);
         this.from = this.check_sacc(this.from);
         this.to = this.check_acc(this.to);
     }
