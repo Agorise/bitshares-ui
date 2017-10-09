@@ -9,12 +9,13 @@ import {ChainStore, TransactionBuilder} from "agorise-bitsharesjs/es";
 import {PrivateKey, PublicKey, /*Aes,*/ key, hash} from "agorise-bitsharesjs/es/ecc";
 import {blind_output,blind_memo,blind_input,blind_output_meta,
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
-        transfer_to_blind_op} from "stealth/Transfer/confidential";
+        transfer_to_blind_op,transfer_from_blind_op,blind_transfer_op
+       } from "stealth/Transfer/confidential";
 import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
 import StealthZK from "stealth/Transfer/stealthzk.js";
 import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
 
-
+const DEBUG = true;
 /**
  *  Class encapsulates the credentials of an ACCOUNT, (stealth OR non-stealth)
  *  that are needs to participate (as either sender OR receiver) in a stealth
@@ -33,8 +34,8 @@ class StealthID {
         if (typeof label_or_account === "string") {
             this.label = label_or_account;
             this.markedlabel = "@"+this.label;
-            this.PublicKey = pubkeyobj;
-            this.PrivateKey = privkeyobj;  // may be null or undefined
+            this.pubkey = pubkeyobj;
+            this.privkey = privkeyobj;  // may be null or undefined
             this.isblind = true;
             // TODO Assert test that pubkey matches privkey?
         } else {
@@ -96,8 +97,10 @@ class Stealth_Transfer
             this.to = this.findAnyRegularAccountByName(this.to);
         }
 
-        console.log("Constructor after interpretation", this);
-
+        DEBUG && console.log("WSCAT: Suggested rpc tests follow.\n"
+                             + "WSCAT: Connect with: "
+                             + "wscat -c wss://node.testnet.bitshares.eu/");
+        console.log("STEALTHXFR: Constructor after interpretation", this);
     }
 
     // PROPOSE TO MOVE the following account-finding functions to StealthDB
@@ -197,7 +200,7 @@ class Stealth_Transfer
     *
     */
     Public_to_Blind() {
-        /**/ console.log("Public to Blind: from:", this.from.label,
+        /**/ console.log("PUB2BLIND: Public to Blind: from:", this.from.label,
                          "to: ", this.to.markedlabel);
         let bop = new transfer_to_blind_op;     // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
@@ -207,7 +210,7 @@ class Stealth_Transfer
         
         // Loop over recipients (right now only support one)
         let one_time_key = key.get_random_key();
-        let to_key = this.to.PublicKey;
+        let to_key = this.to.pubkey;
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
@@ -231,7 +234,7 @@ class Stealth_Transfer
         meta.SetMemoData(amountasset, blind_factor, out.commitment);
         meta.ComputeReceipt(secret);            // secret used as AES key/iv
 
-        out.stealth_memo = meta.confirmation;  // Omit???
+        out.stealth_memo = meta.confirmation;  // Omit???  (Serializer barfs...)
         blindconf.output_meta = [meta];        // needs to be push_back()
         bop.outputs = [out];                   // needs to be push_back()
 
@@ -257,6 +260,22 @@ class Stealth_Transfer
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });
+        if (false) { // TESING SHUNT BLOCK
+            // Trying to manually generate TX so I can manually broadcast...
+            // The ones I manually generate tho always fail with "Missing
+            // Active Authority"
+            return Promise.all([tr.set_required_fees(),tr.finalize()]).then(()=>{
+                /***/ console.log ("Try'n catch a TX by the tail yo.");
+                /***/ console.log(tr.expiration);
+                tr.expiration+=600;
+                /***/ console.log(tr.expiration);
+                tr.add_signer(PrivateKey        // Try manually adding signing keys
+                   .fromWif("5H***"));
+                tr.sign();//
+                blindconf.trx = tr;
+                /***/ console.log(JSON.stringify(tr.serialize()));
+                return blindconf;})
+        }//END SHUNT - Normal behavior follows...
         return WalletDb.process_transaction(tr,null,true)
             .then(()=>{blindconf.trx = tr; return blindconf;})
             .catch((err)=>{
@@ -272,22 +291,20 @@ class Stealth_Transfer
      *  moved to StealthDB class first.
      */
     Receive_Blind_Transfer (receipt_txt) {
+
         let confirmation = new stealth_confirmation();
         confirmation.ReadBase58(receipt_txt);
-        let who = this.findStealthAccountMatchingPubkey(confirmation.to);
-        let secret = who.PrivateKey.get_shared_secret(
+
+        let whoto = this.findStealthAccountMatchingPubkey(confirmation.to);
+        let secret = whoto.privkey.get_shared_secret(
             confirmation.one_time_key);         // 512-bits for aes key/iv
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
-        let child_priv_key = who.PrivateKey.child(child); // Sender can't know
+        let child_priv_key = whoto.privkey.child(child); // Sender can't know
         let memo = new stealth_cx_memo_data;
         memo.Decrypt(confirmation.encrypted_memo, secret);
-        /***/ console.log("Receiving: ", "asking,rcving,memo ",
-                          who,
-                          child_priv_key.toPublicKey(),
-                          memo);
-        
+
         let result = {};        // TODO define object class
-        result.to_key = who.PublicKey;  // Might want to use toString here
+        result.to_key = whoto.pubkey;   // Might want to use toString here
         result.to_label = "dummytest";
         result.amount = memo.amount;
         result.control_authority = {"weight_threshold":1,"account_auths":[],
@@ -299,7 +316,95 @@ class Stealth_Transfer
         // TODO confirm amount matches commitment and other checks
         // TODO pushing into DB
         
+        /***/ console.log("ReceiveBT result:", result);
+        DEBUG && console.log('WSCAT: Test for commitment in blockchain with:\n'
+                             + 'WSCAT: {"method": "call", "params":'
+                             + '[0, "get_blinded_balances", [["'
+                             + Buffer.from(result.data.commitment).toString('hex')
+                             + '"]]], "id": 3}');
         return result;
+        
+    }
+
+    Blind_to_Blind() {
+        /**/console.log("BLIND2BLIND: (TEMP CODE) This will transfer the entire "
+                        + "balance of the RECEIPT provided on memo line to a "
+                        + "blind account. Input receipt is:" + this.messagetxt
+                        + "At present, this ALPHA code only handles one blind "
+                        + "input and one bind output.");
+        let blindconf = new blind_confirmation; // This will be return object
+                                                // if no errors.
+        let blinding_factors = [];
+        let total_amount = 0;
+        let bop = new blind_transfer_op;        // The "op" that we will build
+        
+        let feeamount = 500100;            // TEMP need to get from chain
+        let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};
+        bop.feeamountasset;
+        
+        let in_rcpt = this.Receive_Blind_Transfer(this.messagetxt);
+
+        let input = new blind_input;
+        input.commitment = in_rcpt.data.commitment;
+        input.owner = in_rcpt.control_authority;
+        bop.inputs = [input];
+        
+        // Loop over recipients (right now only support one)
+        let one_time_key = key.get_random_key();
+        let to_key = this.to.pubkey;
+        let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
+        let child = hash.sha256(secret);        // 256-bit pub/priv key offset
+        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
+        let blind_factor = hash.sha256(child);
+
+        let amount = in_rcpt.amount.amount - feeamount;
+        let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
+        // Trying to make ouput amount = input amount less fees...
+        // ...but we keep failing fc::ecc::verify_sum.
+        /***/ console.log("feeamt,amt,tots", feeamountasset,amountasset,
+                         feeamountasset.amount + amountasset.amount);
+        total_amount += amount;
+        blinding_factors = [blind_factor];      // push_back when loop
+
+        let out = new blind_output;             // One output per recipient
+        out.owner = {"weight_threshold":1,"account_auths":[],
+                     "key_auths":[[to_key.child(child),1]],
+                     "address_auths":[]};
+        out.commitment = StealthZK.BlindCommit(blind_factor,amount);
+        out.range_proof = new Uint8Array(0);    // (Not needed for 1 output)
+
+        let meta = new blind_output_meta;       // Metadata for each output, to
+        meta.label = this.to.label;             // be kept in blindconf for our
+        meta.SetKeys(one_time_key, to_key);     // history/records.
+        meta.SetMemoData(amountasset, blind_factor, out.commitment);
+        meta.ComputeReceipt(secret);            // secret used as AES key/iv
+
+        out.stealth_memo = meta.confirmation;  // Omit???
+        blindconf.output_meta = [meta];        // needs to be push_back()
+        bop.outputs = [out];                   // needs to be push_back()
+
+        /***/ console.log("Receipt:  ", meta.confirmation_receipt);
+        // Loop over recipients would end here
+
+        let tr = new TransactionBuilder();
+        tr.add_type_operation("blind_transfer",{
+            fee: bop.fee,
+            inputs: bop.inputs,
+            outputs: bop.outputs
+        });
+        tr.set_required_fees();
+        tr.update_head_block();
+        //tr.finalize().then(()=>{
+            tr.add_signer(in_rcpt.auth_priv_key);
+            //tr.sign();
+            /***/ console.log("Built inital TX:", tr);
+        //});
+        return WalletDb.process_transaction(tr,null,true)
+            .then(()=>{blindconf.trx = tr; return blindconf;})
+            .catch((err)=>{
+                return new Error("To_Stealth: WalletDb.process_transaction error: ",
+                                 JSON.stringify(err));
+            });
         
     }
 
@@ -307,66 +412,51 @@ class Stealth_Transfer
      * From Blind to Public:
      */
     Blind_to_Public() {
-        /**/console.log("Memo is",this.messagetxt);
-        this.from = this.check_sacc(this.from);
-        this.to = this.check_acc(this.to);
+        /**/console.log("(TEMP CODE) This will transfer the entire balance of",
+                        "the RECEIPT provided on memo line to a public account.",
+                        "Input receipt is:",this.messagetxt,
+                        "At present, this ALPHA code only handles one blind",
+                        "input and one public output.");
+        let bop = new transfer_from_blind_op;
+        
+        let amount = this.amount;
+        let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
+
+        let in_rcpt = this.Receive_Blind_Transfer(this.messagetxt);
+
+        bop.amount = in_rcpt.amount.amount - amount;  // VERY TEMP !!!
+        bop.to = this.to.id;
+        bop.blinding_factor = in_rcpt.data.blinding_factor;
+        bop.inputs = [{"commitment":in_rcpt.data.commitment,
+                       "owner":in_rcpt.control_authority}];
+        
+        /***/ console.log("thisamt,rcptamt,bopamt", amount, in_rcpt.amount,bop.amount);
+        // STUFF....
+
+        let tr = new TransactionBuilder();
+        tr.add_type_operation("transfer_from_blind",{
+            fee: {
+                amount: 0,
+                asset_id: "1.3.0"
+            },
+            amount: {
+                amount: bop.amount,
+                asset_id: this.asset.get("id")
+            },
+            to: bop.to,
+            blinding_factor: bop.blinding_factor,
+            inputs: bop.inputs
+        });
+        tr.add_signer(in_rcpt.auth_priv_key);
+        /***/ console.log("Built inital TX:", tr);
+        return WalletDb.process_transaction(tr,null,true/*true*/)
+            .then(()=>{blindconf.trx = tr; return blindconf;})
+            .catch((err)=>{
+                return new Error("To_Stealth: WalletDb.process_transaction error: ",
+                                 JSON.stringify(err));
+            });
+        
     }
 
-
-    Stealth_Transfer()
-    {
-        this.from = this.check_sacc(this.from);
-        this.to = this.check_sacc(this.to);
-    }
-    Execute()
-    {
-        let from_name = this.from;
-        let to_name = this.to;
-        let asset = this.asset;
-        let ammount = this.ammount;
-        if(from_name[0] != "@" && to_name[0] == "@")
-        { 
-            if(to_name == undefined || from_name == undefined  || ammount == 0 || ammount == undefined)
-            {
-                return false; //transfer didn't go through
-            }
-            let XTONAME = strip_symbol(to_name);
-            if(XTONAME != false)
-            {
-                this.from = from_name;
-                this.to = XTONAME;
-                this.asset == AssetStore.getAsset(asset);
-                this.ammount = ammount;
-                return this.To_Stealth();
-            }
-            else
-            {
-                return false; //Transfer went wrong.
-            }
-        }
-        else if(from_name[0] == "@" && to_name[0] != "@")
-        {
-            this.from = strip_symbol(from_name);
-            this.to = to_name;
-            this.From_Stealth();
-        }
-        else if(from_name[0] == "@" && to_name[0] == "@")
-        {
-            this.from = strip_symbol(from_name);
-            this.to = strip_symbol(to_name);
-            this.S_2_S();
-        }
-        else
-        {
-            if(from_name == null || to_name == null)
-            {
-                throw new Error("stealth/Transfer: Null value passed to stealth transfer");
-            }
-            else
-            {
-                throw new Error("stealth/Transfer: something went wrong, non-stealth values passed to stealth transfer");
-            }
-        }
-    }
 }
 export default Stealth_Transfer;

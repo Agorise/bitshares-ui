@@ -240,9 +240,37 @@ class transfer_to_blind_op
         this.outputs = [];          // vector<blind_output>
     }
 
-    fee_payer() {/* return this.from; */}
-    validate(){} //TODO
-    calculate_fee(/*TODO*/){/*TODO*/} // returns share_type 
+    //fee_payer() {/* return this.from; */}
+    //validate(){} //TODO
+    //calculate_fee(/*TODO*/){/*TODO*/} // returns share_type 
+
+}
+
+class transfer_from_blind_op
+{
+    constructor()
+    {
+        this.fee = null;            // asset type
+        this.amount = null;         // asset type
+        this.to = null;             // account_id_type
+        this.blinding_factor = null;// blind_factor_type
+        this.inputs = [];           // vector<blind_output>
+    }
+
+    //fee_payer() {/* return this.from; */}
+    //validate(){} //TODO
+    //calculate_fee(/*TODO*/){/*TODO*/} // returns share_type 
+
+}
+
+class blind_transfer_op
+{
+    constructor()
+    {
+        this.fee = null;            // asset type
+        this.inputs = [];           // vector<blind_output>
+        this.outputs = [];
+    }
 
 }
 
@@ -281,4 +309,6 @@ export {
     blind_input,
     blind_output,
     transfer_to_blind_op,
+    transfer_from_blind_op,
+    blind_transfer_op
 };
