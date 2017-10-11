@@ -355,7 +355,7 @@ class Stealth_Transfer
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
-        let blind_factor = hash.sha256(child);
+        let blind_factor = in_rcpt.data.blinding_factor; //hash.sha256(child);
 
         let amount = in_rcpt.amount.amount - feeamount;
         let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
