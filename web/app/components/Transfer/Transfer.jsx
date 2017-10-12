@@ -486,6 +486,7 @@ class Transfer extends React.Component {
                                 size={60}
                                 tabIndex={tabIndex++}
                                 contacts={this.state.SDB.contacts}
+                                accounts={this.state.SDB.accounts}
                             />
                         </div>
                         {/*  A M O U N T   */}

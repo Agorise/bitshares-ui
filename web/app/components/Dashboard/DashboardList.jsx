@@ -18,6 +18,7 @@ import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
 import { ContextMenuProvider } from "react-contexify";
 import confidential_logo from "stealth/Visual_Components/images/confidential.png";
+import Receive_Receipt_Screen from "stealth/Visual_Components/Receive_Receipt";
 const starSort = function(a, b, inverse, starredAccounts) {
 	let aName = a.get("name");
 	let bName = b.get("name");
@@ -361,7 +362,7 @@ class DashboardList extends React.Component {
 				<thead>
 					<tr>
 						<th><Icon className="grey-star" name="fi-star"/></th>
-						<th>Stealth Account</th>
+						<th><div style={{paddingTop: "10px"}}>Stealth Account</div><div style={{fontSize:"10px",color:"lightgreen"}} onClick={Receive_Receipt_Screen}>(Cash Receipt?)</div></th>
 						<th style={{textAlign: "right"}}>Transactions</th>
 						<th style={{textAlign: "right"}}>Blind Balance</th>
 						<th style={{textAlign: "right"}}>Stealth Balance</th>

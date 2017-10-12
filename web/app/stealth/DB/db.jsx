@@ -20,7 +20,7 @@ class Stealth_DB
         this.label = "";
         this.pubkey = "";
         this.IDB.version(1).stores({
-            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts",
+            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts",
             stealth_contacts: "id++,label,public_key",
             sent_pbreceipts: "id++,from,to,receipt,value"
         });
@@ -30,7 +30,7 @@ class Stealth_DB
         let Accounts = this.IDB.stealth_accounts;
         return Accounts.each(a=>{
             let SACC = new Stealth_Account();
-            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account);
+            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts);
             this.accounts.push(SACC);
         });
     }
@@ -157,11 +157,6 @@ class Stealth_DB
         }
         return false;
     }
-    /* @Log_Sent_Receipt(a,c,r)
-     * @a: account label with or without @ it doesn't matter.
-     * @c: contact label with or without @ it doesn't matter.
-     * @r: the receipt to send
-    */
     Is_Public(a)
     {
         let accs = AccountStore.getMyAccounts();
@@ -184,6 +179,11 @@ class Stealth_DB
         }
         return false;
     }
+    /* @Log_Sent_Receipt(a,c,r)
+     * @a: account label with or without @ it doesn't matter.
+     * @c: contact label with or without @ it doesn't matter.
+     * @r: the receipt to send
+    */
     Log_Sent_Receipt(a, c, r, v)
     {
         console.log("LOGGING SENT RECEIPT A:"+a+" c:"+c+" r:"+r+" v:"+v);
@@ -197,12 +197,30 @@ class Stealth_DB
         if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
         {if(this.Is_Public(c)){Cpublic = true;C=c;}else{C = this.get_contact(c);}}else{C = c;}
         if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v));}//Public To Stealth
-        if(Apublic && Cpublic){A.sent_receipts.push(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts);} //Stealth To Stealth
+        if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts);} //Stealth To Stealth
+    }
+    /* Log_Received_Receipt(a,c,r,v)
+     * @a: Account you wish to receive receipt for.
+     * @c: Contact/Address/null==unknown
+     * @r: Receipt TEXT in itself.
+     * @v: value/received ammount.
+    */
+    Log_Received_Receipt(a, c, r, v)
+    {
+        console.log("Logging Received receipt: A-"+a+" R:"+r+" V-"+v);
+        if(r === null || v === null || a === null){ console.log("Error in logging receipt, either no account, value or receipt was passed."); return false;}
+        if(c === null){c = "UNKNOWN";}
+        let A = this.get_account(a);
+        if(!A){console.log("No such stealth account!"); return false;}
+        let R = new Blind_Receipt(c,r,v);
+        A.receive_receipt(R);
+        if(modify_account(A,"sent_receipts",A.sent_receipts)){return true;}
     }
 }
 /*USAGE: 
         let DB = new Stealth_DB()
-        DB.Initialize().then(()=>{
+        DB.Initialize().then(()=>
+        {
             do something with it
         })
 */

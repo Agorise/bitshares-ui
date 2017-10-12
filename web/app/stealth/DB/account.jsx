@@ -10,6 +10,7 @@ class Stealth_Account
         this.publickey = "";
         this.account = "";
         this.sent_receipts = [];
+        this.received_receipts = [];
     }
     removeat(acc)
     {
@@ -22,13 +23,15 @@ class Stealth_Account
         }
         return result;
     }
-    load_account(label, brainkey,publickey,privatekey,account)
+    load_account(label, brainkey,publickey,privatekey,account,sent_receipts,received_receipts)
     {
         this.label = label;
         this.brainkey = brainkey;
         this.privatekey = privatekey;
         this.publickey = publickey;
         this.account = account;
+        this.sent_receipts = sent_receipts;
+        this.received_receipts = received_receipts;
     }
     new_account(label, account)
     {
@@ -42,7 +45,8 @@ class Stealth_Account
             this.publickey = proc.toPublicKey().toString();
             this.privatekey = proc.toWif();
             this.account = account;
-
+            this.sent_receipts = [];
+            this.received_receipts = [];
         }
         else
         {
@@ -52,6 +56,10 @@ class Stealth_Account
     send_receipt(R)
     {
         this.sent_receipts.push(R);
+    }
+    receive_receipt(R)
+    {
+        this.received_receipts.push(R);
     }
 }
 export default Stealth_Account;

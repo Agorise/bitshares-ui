@@ -77,7 +77,23 @@ class AccountSelector extends React.Component {
                 });
                 if(!found)
                 {
-                    error = "CONTACT_ERROR!";
+                    this.props.accounts.filter(account => {
+                        let result = "";
+                        for(var i=1;i<this.props.accountName.length;i++)
+                        {
+                            result+=this.props.accountName[i];
+                        }
+                        if(account.label == result)
+                        {
+                            return result;
+                        }
+                    }).map(account => {
+                        if(account)
+                        {
+                            found = true;
+                        }
+                    });
+                    if(!found){error = "CONTACT_ERROR!";}
                 }
             }
         }
