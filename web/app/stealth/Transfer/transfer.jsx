@@ -326,7 +326,18 @@ class Stealth_Transfer
         
     }
 
-    Blind_to_Blind() {
+    /**
+     *  Blind to Blind transfer.
+     *
+     *  If @to_temp_acct==true, then "to" authority is anonymous, and
+     *  we don't .process_transaction().  This is because a second
+     *  operation still needs to be added to the TX to "claim" the
+     *  temp balance to a public account.  See Blind_to_Public().
+     * 
+     *  TEMP CODE: At present, we spend ENTIRE receipt to single
+     *  output.  This will be fixed when we have range proofs.
+     */
+    Blind_to_Blind(to_temp_acct=false) {
         /**/console.log("BLIND2BLIND: (TEMP CODE) This will transfer the entire "
                         + "balance of the RECEIPT provided on memo line to a "
                         + "blind account. Input receipt is:" + this.messagetxt
@@ -340,7 +351,7 @@ class Stealth_Transfer
         
         let feeamount = 500100;            // TEMP need to get from chain
         let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};
-        bop.feeamountasset;
+        bop.fee = feeamountasset;
         
         let in_rcpt = this.Receive_Blind_Transfer(this.messagetxt);
 
@@ -356,26 +367,27 @@ class Stealth_Transfer
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
         let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
         let blind_factor = in_rcpt.data.blinding_factor; //hash.sha256(child);
-
-        let amount = in_rcpt.amount.amount - feeamount;
+                        // TEMP:^^ To handle multiple inputs need blind_sum
+        
+        let amount = in_rcpt.amount.amount - feeamount;  // TEMP
         let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
-        // Trying to make ouput amount = input amount less fees...
-        // ...but we keep failing fc::ecc::verify_sum.
         /***/ console.log("feeamt,amt,tots", feeamountasset,amountasset,
                          feeamountasset.amount + amountasset.amount);
         total_amount += amount;
         blinding_factors = [blind_factor];      // push_back when loop
 
         let out = new blind_output;             // One output per recipient
-        out.owner = {"weight_threshold":1,"account_auths":[],
-                     "key_auths":[[to_key.child(child),1]],
+        out.owner = {"weight_threshold":to_temp_acct?0:1,
+                     "account_auths":[],
+                     "key_auths":to_temp_acct?[]:[[to_key.child(child),1]],
                      "address_auths":[]};
         out.commitment = StealthZK.BlindCommit(blind_factor,amount);
         out.range_proof = new Uint8Array(0);    // (Not needed for 1 output)
 
         let meta = new blind_output_meta;       // Metadata for each output, to
         meta.label = this.to.label;             // be kept in blindconf for our
-        meta.SetKeys(one_time_key, to_key);     // history/records.
+        meta.auth = out.owner;                  // history/records.
+        meta.SetKeys(one_time_key, to_key);
         meta.SetMemoData(amountasset, blind_factor, out.commitment);
         meta.ComputeReceipt(secret);            // secret used as AES key/iv
 
@@ -392,20 +404,24 @@ class Stealth_Transfer
             inputs: bop.inputs,
             outputs: bop.outputs
         });
-        tr.set_required_fees();
-        tr.update_head_block();
-        //tr.finalize().then(()=>{
-            tr.add_signer(in_rcpt.auth_priv_key);
-            //tr.sign();
-            /***/ console.log("Built inital TX:", tr);
-        //});
-        return WalletDb.process_transaction(tr,null,true)
-            .then(()=>{blindconf.trx = tr; return blindconf;})
-            .catch((err)=>{
-                return new Error("To_Stealth: WalletDb.process_transaction error: ",
+        tr.set_required_fees();         // Async.  Promise?
+        tr.update_head_block();         // Async.  Promise?
+        tr.add_signer(in_rcpt.auth_priv_key);
+        /***/ console.log("Built inital B2B TX:", tr);
+
+        if (!to_temp_acct) {
+            // Then process TX now
+            return WalletDb.process_transaction(tr,null,true)
+                .then(()=>{blindconf.trx = tr; return blindconf;})
+                .catch((err)=>{
+                    return new Error("B2B WalletDb.process_transaction error: ",
                                  JSON.stringify(err));
             });
-        
+        } else {
+            // Else pass to next stage
+            blindconf.trx = tr;
+            return blindconf;
+        }
     }
 
     /**
@@ -417,38 +433,42 @@ class Stealth_Transfer
                         "Input receipt is:",this.messagetxt,
                         "At present, this ALPHA code only handles one blind",
                         "input and one public output.");
+        // Get first-stage operation:
+        let whoto = this.to; this.to = this.from; // Gonna send to self, sorta
+        let stage1 = this.Blind_to_Blind(true);   // get tx with temp acct 
+        this.to = whoto;  // (Not sure if needed/wanted)
+        /***/ console.log("B2PUB: Stage 1 was", stage1);
+
         let bop = new transfer_from_blind_op;
-        
-        let amount = this.amount;
+
+        let feeamount = 100;            // TEMP need to get from chain
+        let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};
+        bop.fee = feeamountasset;
+
+        let input_memo = stage1.output_meta[0].decrypted_memo;
+        let input_auth = stage1.output_meta[0].auth;
+              //^^ Need to search rather than assume position zero.
+
+        let amount = input_memo.amount.amount - feeamount;
         let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
+        bop.amount = amountasset;
 
-        let in_rcpt = this.Receive_Blind_Transfer(this.messagetxt);
-
-        bop.amount = in_rcpt.amount.amount - amount;  // VERY TEMP !!!
         bop.to = this.to.id;
-        bop.blinding_factor = in_rcpt.data.blinding_factor;
-        bop.inputs = [{"commitment":in_rcpt.data.commitment,
-                       "owner":in_rcpt.control_authority}];
+        bop.blinding_factor = input_memo.blinding_factor;
+        bop.inputs = [{"commitment":input_memo.commitment,
+                       "owner":input_auth}];
         
-        /***/ console.log("thisamt,rcptamt,bopamt", amount, in_rcpt.amount,bop.amount);
-        // STUFF....
+        /**/ console.log("BOP", bop);
 
-        let tr = new TransactionBuilder();
+        let tr = stage1.trx;
         tr.add_type_operation("transfer_from_blind",{
-            fee: {
-                amount: 0,
-                asset_id: "1.3.0"
-            },
-            amount: {
-                amount: bop.amount,
-                asset_id: this.asset.get("id")
-            },
+            fee: bop.fee,
+            amount: bop.amount,
             to: bop.to,
             blinding_factor: bop.blinding_factor,
             inputs: bop.inputs
         });
-        tr.add_signer(in_rcpt.auth_priv_key);
-        /***/ console.log("Built inital TX:", tr);
+        /***/ console.log("Built inital B2P TX:", tr);
         return WalletDb.process_transaction(tr,null,true/*true*/)
             .then(()=>{blindconf.trx = tr; return blindconf;})
             .catch((err)=>{
