@@ -69,8 +69,8 @@ class stealth_cx_memo_data
     {
         this.from = null;           // (optional) public_key_type
         this.amount = null;         // asset (bitshares-core/.../asset.hpp)
-        this.blinding_factor = "";  // fc::sha256
-        this.commitment = "";       // fc::ecc::commitment_type
+        this.blinding_factor = "";  // Buffer 32 bytes
+        this.commitment = "";       // Buffer 33 bytes
         this.check = 0;             // uint32
     }
 

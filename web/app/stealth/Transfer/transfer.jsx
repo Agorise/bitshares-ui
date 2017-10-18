@@ -14,6 +14,7 @@ import {blind_output,blind_memo,blind_input,blind_output_meta,
 import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
 import StealthZK from "stealth/Transfer/stealthzk.js";
 import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
+import {Long} from 'bytebuffer';
 
 const DEBUG = true;
 /**
@@ -30,11 +31,11 @@ class StealthID {
      *           contact, and subsequent args will/may be set.  If not string,
      *           then assume a ChainStore Account object for a PUBLIC account.
      */
-    constructor(label_or_account, pubkeyobj, privkeyobj) {
+    constructor(label_or_account, pubkeyobj, privkeyobj=null) {
         if (typeof label_or_account === "string") {
             this.label = label_or_account;
             this.markedlabel = "@"+this.label;
-            this.pubkey = pubkeyobj;
+            this.pubkey = (privkeyobj) ? privkeyobj.toPublicKey() : pubkeyobj;
             this.privkey = privkeyobj;  // may be null or undefined
             this.isblind = true;
             // TODO Assert test that pubkey matches privkey?
@@ -479,4 +480,157 @@ class Stealth_Transfer
     }
 
 }
+
+
+/**
+ * A "blind coin" is the information needed to spend a particular blind
+ * commitment deposited in the blockchain.
+ *
+ * RETREIVE and STORE from RECIPT:
+ *
+ * let pkeyfind = (addr)=>{return "5xxxxx";} // (must return WIF from addr)
+ * let bc = BlindCoin.fromReceipt(rcpt_txt, pkeyfind);
+ * DB.Stash(bc.toDBObject(),bc.ask_address());
+ *  
+ * The ask_address() method returns the address that was used to request
+ * blind funds.  This can be used to associate the coin with the blind
+ * account containing the address when storing in the database.  The address
+ * itself does not need to be explicitly stored.
+ *
+ * The toDBObject() method returns a "lightweight" representation of the
+ * BlindCoin object for storage/retreival.  There is a corresponding static
+ * fromDBOject() to generate a BlindCoin object after DB retreival.
+ */
+class BlindCoin {
+
+    /**
+     * Generally shouldn't be called directly.  New coin objects should
+     * either be generated with fromReceipt() or fromDBObject() (which in
+     * turn call this).
+     */
+    constructor(auth_privkey,           // PrivetKey object or WIF; Spend key
+                value,                  // Long; Amount in atomic units
+                asset_id,               // ID of asset as "1.3.x" or integer x
+                blinding_factor,        // Assuming Buffer 32 bytes 
+                commitment,             // Assuming Buffer 33 bytes
+                spent,                  // true/false
+                asking_pubkey = null    // (Optional)
+               ) {
+        this.auth_privkey = (typeof auth_privkey === "string")
+            ? PrivateKey.fromWif(auth_privkey)
+            : auth_privkey;
+        this.value = (typeof value === "string")
+            ? Long.fromString(value)
+            : value;
+        this.asset_id = (typeof asset_id === "string")
+            ? asset_id
+            : "1.3."+asset_id;
+        this.blinding_factor = blinding_factor;
+        this.commitment = commitment;
+        this.spent = spent;
+        this.asking_pubkey = (typeof asking_pubkey === "string")
+            ? PublicKey.fromStringOrThrow(asking_pubkey)
+            : asking_pubkey;
+    }
+
+    /**
+     * Returns the "asking address" which was used to request the funds
+     * contained by the coin.  String value, eg, "BTSxxxx..."
+     */
+    ask_address() {
+        return this.asking_pubkey.toString();
+    }
+
+    /**
+     * Gets a "blind coin" from a base58-encoded receipt iff a private key
+     * needed to decode the receipt can be found.
+     *
+     * @arg rcpt_txt      - Receipt as base58 text
+     * @arg privkeysearch - A function that returns either null or a WIF-
+     *                      encoded private key for a given public key
+     *                      string. Used to get decoding key for encrypted
+     *                      part of receipt.
+     *
+     * returns: false || new BlindCoin(...)
+     *
+     * returns false if wallet contains no private key that can decode the
+     *         receipt, or else a BlindCoin object if receipt is
+     *         successfully decoded.
+     *
+     * NOTE: This does NOT check whether the commitment is in fact present
+     * and unspent in the blockchain, but only returns the info from the
+     * receipt.  Checking for spendability should only be done when updating
+     * balance displayed to the user and before contructing a blind spend
+     * operation in order to avoid unnecessarily revealing our "interest" in
+     * the particular commitment to the p2p network.
+     */
+    static fromReceipt(receipt_txt, privkeysearch) {
+
+        let confirmation = new stealth_confirmation();
+        confirmation.ReadBase58(receipt_txt);
+
+        let askingwif = privkeysearch(confirmation.to.toString());
+        let whoto = new StealthID("unknown@",null,PrivateKey.fromWif(askingwif));
+        let secret = whoto.privkey.get_shared_secret(
+            confirmation.one_time_key);   // 512-bits for aes key/iv
+        let child = hash.sha256(secret);  // 256-bit pub/priv key offset
+        let child_priv_key = whoto.privkey.child(child); // Sender can't know
+
+        let memo = new stealth_cx_memo_data;
+        memo.Decrypt(confirmation.encrypted_memo, secret);
+
+        // TODO confirm amount matches commitment and other checks
+        let result = new BlindCoin(child_priv_key,
+                                   memo.amount.amount,
+                                   memo.amount.asset_id,
+                                   memo.blinding_factor,
+                                   memo.commitment,
+                                   false,
+                                   whoto.pubkey
+                                  );
+        
+        /***/ console.log("Blind Coin read from Receipt:", result);
+        DEBUG && console.log('WSCAT: Test for commitment in blockchain with:\n'
+                             + 'WSCAT: {"method": "call", "params":'
+                             + '[0, "get_blinded_balances", [["'
+                             + Buffer.from(result.commitment).toString('hex')
+                             + '"]]], "id": 3}');
+        return result;
+
+    }
+    
+    /**
+     * Returns a clean, flat form suitable for storage/retreival in a
+     * databse of some sort.  Flattens most fields to strings.  Includes a
+     * version field in case of changes.
+     */
+    toDBObject() {
+        return {
+            ver: "bc01",
+            auth_privkey:     this.auth_privkey.toWif(),
+            value:            this.value.toString(),
+            asset_id:         this.asset_id,
+            blinding_factor:  this.blinding_factor.toString('hex'),
+            commitment:       this.commitment.toString('hex'),
+            spent:            this.spent
+        };
+    }
+
+    /**
+     * Returns a new BlindCoin object interpreted from the lightweight form
+     * used for storage/retreival.
+     */
+    static fromDBObject(DBObj) {
+        /***/ console.log("WhatisDBObj", DBObj);
+        return new BlindCoin(DBObj.auth_privkey,
+                             DBObj.value,
+                             DBObj.asset_id,
+                             Buffer.from(DBObj.blinding_factor, "hex"),
+                             Buffer.from(DBObj.commitment, "hex"),
+                             DBObj.spent
+                            );
+    }
+    
+}
 export default Stealth_Transfer;
+export {BlindCoin};
