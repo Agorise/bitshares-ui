@@ -1,4 +1,5 @@
-import Receive_Blind_Transfer from "stealth/Transfer/transfer";
+import {BlindCoin} from "stealth/Transfer/transfer";
+import Stealth_DB from "stealth/DB/db";
 let Receive_Receipt_Screen = () =>{
     let Overlay = document.createElement("div"); //OVERLAY
     let _Window = document.createElement("div"); //Window
@@ -201,7 +202,12 @@ let Receive_Receipt_Screen = () =>{
     });
     BUTTONOK.addEventListener("click", ()=>
     {
-        Receive_Blind_Transfer(XAREA.value);
+        let DB = new Stealth_DB();
+        DB.Initialize().then(()=>{
+            let bc = BlindCoin.fromReceipt(XAREA.value, DB);
+            console.log(bc);
+            //DB.Stash(bc.toDBObject(),bc.ask_address());
+        });
         _window.remove();
         overlay.remove();
     });

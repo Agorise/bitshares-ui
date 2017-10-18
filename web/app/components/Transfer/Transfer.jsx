@@ -20,7 +20,7 @@ import TriSwitch from "stealth/Visual_Components/tri-switch";
 import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
-import Stealth_Transfer from "stealth/Transfer/transfer";
+import {Stealth_Transfer} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
 class Transfer extends React.Component {
 
@@ -298,6 +298,7 @@ class Transfer extends React.Component {
         .catch((x)=>{
             console.log(x);
         });
+
     }
     Compute_Transaction_Type(BUTTONTYPE)
     {

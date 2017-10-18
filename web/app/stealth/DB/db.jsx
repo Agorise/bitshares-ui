@@ -6,7 +6,13 @@ import AccountStore from "stores/AccountStore";
 /* Standards:
  * Capital letters represent Objects.
  * Lowercase letters represent strings.
- */
+ * !!! USAGE: 
+        let DB = new Stealth_DB()
+        DB.Initialize().then(()=>
+        {
+            do something with it
+        })
+*/
 class Stealth_DB
 {
     constructor()
@@ -20,7 +26,7 @@ class Stealth_DB
         this.label = "";
         this.pubkey = "";
         this.IDB.version(1).stores({
-            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts",
+            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts, balance",
             stealth_contacts: "id++,label,public_key",
             sent_pbreceipts: "id++,from,to,receipt,value"
         });
@@ -30,7 +36,7 @@ class Stealth_DB
         let Accounts = this.IDB.stealth_accounts;
         return Accounts.each(a=>{
             let SACC = new Stealth_Account();
-            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts);
+            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts,a.balance);
             this.accounts.push(SACC);
         });
     }
@@ -49,10 +55,6 @@ class Stealth_DB
             let RCPT = [r.from, new Blind_Receipt(r.to,r.receipt,r.value)];
             this.sent_pbreceipts.push(RCPT);
         });
-    }
-    Initialize()
-    {
-        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Sent_PBReceipts()]);
     }
 
     get_account(a)
@@ -179,6 +181,125 @@ class Stealth_DB
         }
         return false;
     }
+
+    /*Initialize()
+     * First function to be called, It loads the database and returns a promise. Use the callback method to execute whatever you need with it.
+     * Usage Example: 
+        let
+        DB.Initialize().then(()=>
+        {
+            do something with it
+        })
+    */
+    Initialize()
+    {
+        return Promise.all([this.Load_Accounts(),this.Load_Contacts(),this.Load_Sent_PBReceipts()]);
+    }
+
+    /*@Create_Account(label,associated_account)
+     * @label: The account name desired.
+     * @associated_account: the public account it's associated to.
+    */
+    Create_Account(label,associated_account)
+    {
+        let ACC = new Stealth_Account;
+        ACC.new_account(label,associated_account);
+        if(this.create_account(ACC)){console.log("Stealth Account created successfully!");}
+        else{console.log("Something went wrong in creating Stealth Account!");}
+    }
+
+    /*@Add_Contact(label,address)
+     * @label: The contact name you wish to associate with a publickey.
+     * @address: The public key you wish to label.
+    */ 
+    Add_Contact(label,address)
+    {
+        let CTC = new Stealth_Contact(label,address);
+        if(CTC.validate_contact())
+        {
+            if(this.create_contact(CTC)){console.log("Stealth Contact added successfully!"); return true;}
+            else{console.log("Error in creating contact!");return false;}
+        }
+    }
+    get_index(What, key)
+    {
+        let what = What.toLowerCase();
+        let searchee = null;
+        //Searching for contact
+        if(what === "contact")
+        {
+            searchee = this.contacts;
+            for(let i=0;i<searchee.length;i++)
+            {
+                if(searchee[i].label === key || searchee[i].publickey === key)
+                {
+                    return i;
+                }
+            }
+        }
+        //Searching for account
+        if(what === "account")
+        {
+            searchee = this.accounts;
+            for(let i=0;i<searchee.length;i++)
+            {
+                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey)
+                {
+                    return i;
+                }
+            }
+        }
+        return false;
+    }
+    /*@Get(what, label_or_publickey)
+     * Description: Searches for account or contact with label or publickey, returns the account object.
+     * @what: expects either "account" or "contact" to know what to search for.
+     * @key: contact/account contents you're using to search with.
+     * @return: the account or contact object, if none found, returns false.
+     * 
+     * Example: Stealth_DB.Get("Account","MyAccountName") or Stealth_DB.Get("Contact","BTSaddresshere")
+    */
+    Get(What, key)
+    {
+        let what = What.toLowerCase();
+        let searchee = null;
+        //Searching for contact
+        if(what === "contact")
+        {
+            searchee = this.contacts;
+            for(let i=0;i<searchee.length;i++)
+            {
+                if(searchee[i].label === key || searchee[i].publickey === key)
+                {
+                    return searchee[i];
+                }
+            }
+        }
+        //Searching for account
+        if(what === "account")
+        {
+            searchee = this.accounts;
+            for(let i=0;i<searchee.length;i++)
+            {
+                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey)
+                {
+                    return searchee[i];
+                }
+            }
+        }
+        return false;
+    }
+    /* PrivKeyFinder(publickey)
+     * @publickey: Public key of the account you are searching for. (String, E.g: "BTSxyz.....")
+     * @Return: privatekey (String) or false.
+     */
+    PrivKeyFinder(publickey)
+    {
+        let found = this.Get("account", publickey).privatekey;
+        console.log(found);
+        if(found !== false){return found;}
+        return false;
+    }
     /* @Log_Sent_Receipt(a,c,r)
      * @a: account label with or without @ it doesn't matter.
      * @c: contact label with or without @ it doesn't matter.
@@ -196,32 +317,20 @@ class Stealth_DB
         if(this.Is_Public(a)){Apublic = true; A=a;}else{A = this.get_account(a);}
         if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
         {if(this.Is_Public(c)){Cpublic = true;C=c;}else{C = this.get_contact(c);}}else{C = c;}
-        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v));}//Public To Stealth
-        if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts);} //Stealth To Stealth
+        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); Update_Balance(A);}//Public To Stealth
+        if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts); Update_Balance(A);} //Stealth To Stealth
     }
-    /* Log_Received_Receipt(a,c,r,v)
-     * @a: Account you wish to receive receipt for.
-     * @c: Contact/Address/null==unknown
-     * @r: Receipt TEXT in itself.
-     * @v: value/received ammount.
+
+    /* Stash(Receipt)
+     * @BC: Blind_Coin object holding condensed information
+     * @To_Account: Publickey of the BC's owner.
+     * @Return: true/false
     */
-    Log_Received_Receipt(a, c, r, v)
+    Stash(BC, To_Account)
     {
-        console.log("Logging Received receipt: A-"+a+" R:"+r+" V-"+v);
-        if(r === null || v === null || a === null){ console.log("Error in logging receipt, either no account, value or receipt was passed."); return false;}
-        if(c === null){c = "UNKNOWN";}
-        let A = this.get_account(a);
-        if(!A){console.log("No such stealth account!"); return false;}
-        let R = new Blind_Receipt(c,r,v);
-        A.receive_receipt(R);
-        if(modify_account(A,"sent_receipts",A.sent_receipts)){return true;}
+        this.accounts[this.get_index("account", To_Account)].receive_receipt(B);
+        let A = this.accounts[this.get_index("account", To_Account)];
+        modify_account(A,"received_receipts",A.received_receipts);
     }
 }
-/*USAGE: 
-        let DB = new Stealth_DB()
-        DB.Initialize().then(()=>
-        {
-            do something with it
-        })
-*/
 export default Stealth_DB;

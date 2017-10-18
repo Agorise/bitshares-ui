@@ -7,11 +7,14 @@ class Stealth_Contact
     }
     validate_contact()
     {
-        if(publickey.length < 45 || publickey.length > 60)
+        let valid_pubkey = false;
+        let valid_label = false;
+        if(typeof this.publickey === "string" && this.publickey.length > 40 && this.publickey.length < 60) { valid_pubkey = true;}
+        if(typeof this.label === "string" && this.label.length > 0){valid_label = true;}
+        if(valid_label && valid_pubkey)
         {
-            return false;
+            return true;
         }
-        return true;
     }
     set_contact(label, publickey)
     {

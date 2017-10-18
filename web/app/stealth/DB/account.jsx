@@ -11,6 +11,7 @@ class Stealth_Account
         this.account = "";
         this.sent_receipts = [];
         this.received_receipts = [];
+        this.blind_balance = 0;
     }
     removeat(acc)
     {
@@ -23,7 +24,7 @@ class Stealth_Account
         }
         return result;
     }
-    load_account(label, brainkey,publickey,privatekey,account,sent_receipts,received_receipts)
+    load_account(label, brainkey,publickey,privatekey,account,sent_receipts,received_receipts,balance)
     {
         this.label = label;
         this.brainkey = brainkey;
@@ -32,6 +33,7 @@ class Stealth_Account
         this.account = account;
         this.sent_receipts = sent_receipts;
         this.received_receipts = received_receipts;
+        this.balance = balance;
     }
     new_account(label, account)
     {
@@ -57,9 +59,30 @@ class Stealth_Account
     {
         this.sent_receipts.push(R);
     }
+    update_balance()
+    {
+        let result = 0;
+        for(let x = 0;x<2;x++)
+        {
+            for(let i=0;i<this.received_receipts;i++)
+            {
+                if(x == 0)
+                {
+                    result+=parseFloat(this.received_receipts[i].value);
+                }
+                if(x == 1)
+                {
+                    result-=parseFloat(this.sent_receipts[i].value);
+                }
+            }
+        }
+
+        this.balance = result;
+    }
     receive_receipt(R)
     {
         this.received_receipts.push(R);
+        this.update_balance();
     }
 }
 export default Stealth_Account;

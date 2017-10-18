@@ -7,14 +7,14 @@ import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
 import {ChainStore, TransactionBuilder} from "agorise-bitsharesjs/es";
 import {PrivateKey, PublicKey, /*Aes,*/ key, hash} from "agorise-bitsharesjs/es/ecc";
-import {blind_output,blind_memo,blind_input,blind_output_meta,
+import {blind_output,blind_memo,blind_input,blind_output_meta, 
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
         transfer_to_blind_op,transfer_from_blind_op,blind_transfer_op
        } from "stealth/Transfer/confidential";
-import {BLIND_ECC} from "stealth/Transfer/commitment/commitment";
+import {BLIND_ECC} from "stealth/Transfer/commitment/commitment"; // //(Defined but never used, why?)
 import StealthZK from "stealth/Transfer/stealthzk.js";
-import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
-import {Long} from 'bytebuffer';
+import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js"; //(Defined but never used, why?)
+import {Long} from "bytebuffer";
 
 const DEBUG = true;
 /**
@@ -132,7 +132,7 @@ class Stealth_Transfer
     }
     findStealthAccountMatchingPubkey(pubkey) {
         // TODO tolerate string or object arg; for now assume obj
-        let pubkeystring = pubkey.toString();
+        let pubkeystring = pubkey.toString(); //(Defined but never used, why?)
         let accounts = this.saccs; 
         for(let i=0;i<accounts.length;i++) {
             if(accounts[i].publickey == pubkey.toString()) {
@@ -206,7 +206,7 @@ class Stealth_Transfer
         let bop = new transfer_to_blind_op;     // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
-        let blinding_factors = [];
+        let blinding_factors = []; //(Defined but never used, why?)
         let total_amount = 0;
         
         // Loop over recipients (right now only support one)
@@ -214,7 +214,7 @@ class Stealth_Transfer
         let to_key = this.to.pubkey;
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
-        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
+        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G) //(Defined but never used, why?)
         let blind_factor = hash.sha256(child);
 
         let amount = this.amount;
@@ -275,7 +275,7 @@ class Stealth_Transfer
                 tr.sign();//
                 blindconf.trx = tr;
                 /***/ console.log(JSON.stringify(tr.serialize()));
-                return blindconf;})
+                return blindconf;});
         }//END SHUNT - Normal behavior follows...
         return WalletDb.process_transaction(tr,null,true)
             .then(()=>{blindconf.trx = tr; return blindconf;})
@@ -318,10 +318,10 @@ class Stealth_Transfer
         // TODO pushing into DB
         
         /***/ console.log("ReceiveBT result:", result);
-        DEBUG && console.log('WSCAT: Test for commitment in blockchain with:\n'
+        DEBUG && console.log("WSCAT: Test for commitment in blockchain with:\n"
                              + 'WSCAT: {"method": "call", "params":'
                              + '[0, "get_blinded_balances", [["'
-                             + Buffer.from(result.data.commitment).toString('hex')
+                             + Buffer.from(result.data.commitment).toString("hex")
                              + '"]]], "id": 3}');
         return result;
         
@@ -346,7 +346,7 @@ class Stealth_Transfer
                         + "input and one bind output.");
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
-        let blinding_factors = [];
+        let blinding_factors = []; //(Defined but never used why?)
         let total_amount = 0;
         let bop = new blind_transfer_op;        // The "op" that we will build
         
@@ -366,7 +366,7 @@ class Stealth_Transfer
         let to_key = this.to.pubkey;
         let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
         let child = hash.sha256(secret);        // 256-bit pub/priv key offset
-        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
+        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G) (Defined but never used... why?)
         let blind_factor = in_rcpt.data.blinding_factor; //hash.sha256(child);
                         // TEMP:^^ To handle multiple inputs need blind_sum
         
@@ -417,7 +417,7 @@ class Stealth_Transfer
                 .catch((err)=>{
                     return new Error("B2B WalletDb.process_transaction error: ",
                                  JSON.stringify(err));
-            });
+                });
         } else {
             // Else pass to next stage
             blindconf.trx = tr;
@@ -542,14 +542,11 @@ class BlindCoin {
     }
 
     /**
-     * Gets a "blind coin" from a base58-encoded receipt iff a private key
+     * Gets a "blind coin" from a base58-encoded receipt if a private key
      * needed to decode the receipt can be found.
      *
      * @arg rcpt_txt      - Receipt as base58 text
-     * @arg privkeysearch - A function that returns either null or a WIF-
-     *                      encoded private key for a given public key
-     *                      string. Used to get decoding key for encrypted
-     *                      part of receipt.
+     * @arg DB - Stealth DB 
      *
      * returns: false || new BlindCoin(...)
      *
@@ -564,12 +561,12 @@ class BlindCoin {
      * operation in order to avoid unnecessarily revealing our "interest" in
      * the particular commitment to the p2p network.
      */
-    static fromReceipt(receipt_txt, privkeysearch) {
+    static fromReceipt(receipt_txt, DB) {
 
         let confirmation = new stealth_confirmation();
         confirmation.ReadBase58(receipt_txt);
 
-        let askingwif = privkeysearch(confirmation.to.toString());
+        let askingwif = DB.PrivKeyFinder(confirmation.to.toString());
         let whoto = new StealthID("unknown@",null,PrivateKey.fromWif(askingwif));
         let secret = whoto.privkey.get_shared_secret(
             confirmation.one_time_key);   // 512-bits for aes key/iv
@@ -590,10 +587,10 @@ class BlindCoin {
                                   );
         
         /***/ console.log("Blind Coin read from Receipt:", result);
-        DEBUG && console.log('WSCAT: Test for commitment in blockchain with:\n'
+        DEBUG && console.log("WSCAT: Test for commitment in blockchain with:\n"
                              + 'WSCAT: {"method": "call", "params":'
                              + '[0, "get_blinded_balances", [["'
-                             + Buffer.from(result.commitment).toString('hex')
+                             + Buffer.from(result.commitment).toString("hex")
                              + '"]]], "id": 3}');
         return result;
 
@@ -610,8 +607,8 @@ class BlindCoin {
             auth_privkey:     this.auth_privkey.toWif(),
             value:            this.value.toString(),
             asset_id:         this.asset_id,
-            blinding_factor:  this.blinding_factor.toString('hex'),
-            commitment:       this.commitment.toString('hex'),
+            blinding_factor:  this.blinding_factor.toString("hex"),
+            commitment:       this.commitment.toString("hex"),
             spent:            this.spent
         };
     }
@@ -632,5 +629,4 @@ class BlindCoin {
     }
     
 }
-export default Stealth_Transfer;
-export {BlindCoin};
+export {Stealth_Transfer, BlindCoin};

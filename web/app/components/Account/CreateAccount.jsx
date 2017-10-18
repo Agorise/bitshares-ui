@@ -201,25 +201,11 @@ class CreateAccount extends React.Component {
             let router = this.props.router;
             DB.Initialize().then(function()
             {
-                let ACC = new Stealth_Account();
-                ACC.new_account(DB.label, DB.associated_account);
-                DB.create_account(ACC);
+                DB.Create_Account(DB.label, DB.associated_account);
                 router.push("/dashboard");
             }.bind(DB)).catch(function(result){console.log(result);});
         }
     }
-/*    Add_Stealth_Contact()
-    {
-        this.setState({createdstealth: true});
-        let DB = new Stealth_DB;
-        DB.label = this.state.accountName;
-        DB.pubkey = this.accountNameInput.getPubkey();
-        DB.Initialize().then(function()
-        {
-            let CTC = new Stealth_Contact(DB.label,DB.pubkey);
-            DB.add_contact(CTC);
-        }.bind(DB)).catch(function(result){console.log(result);});
-    }*/
     OnSwitchChange()
     {
         let current_name = this.accountNameInput.getVisualValue();

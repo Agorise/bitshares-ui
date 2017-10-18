@@ -314,7 +314,6 @@ class AccountSelector extends React.Component {
                 account_name_checked += account_name[i];
             }
             MYDB.Initialize().then(function(){
-                let C = new Stealth_Contact(account_name_checked,account_address);
                 document.getElementById("Create_Stealth_Contact_window").remove();
                 let win = document.createElement("div"); //WINDOW
                 let STEALTH_MSG = "";
@@ -335,7 +334,7 @@ class AccountSelector extends React.Component {
                     }
                 });
                 let h1 = document.createElement("h3");
-                if(MYDB.create_contact(C))
+                if(MYDB.Add_Contact(account_name_checked,account_address))
                 {
                     STEALTH_MSG = "Contact added successfully!";
                     h1.setAttributes({
