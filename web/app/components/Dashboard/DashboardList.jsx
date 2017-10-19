@@ -229,6 +229,11 @@ class DashboardList extends React.Component {
 			}
 		});
 	}
+	Receive_Receipt()
+	{
+		let rtr = this.context.router;
+		Receive_Receipt_Screen(rtr);
+	}
 	list_stealth(xaccounts)
 	{
 		const {dashboardFilter} = this.state;
@@ -264,10 +269,10 @@ class DashboardList extends React.Component {
 						</b>
 					</div>
 					</td>
+					<td style={{textAlign: "right"}}>{xacc.sent_receipts.length+xacc.received_receipts.length}</td>
+					<td style={{textAlign: "right"}}>{xacc.blind_balance}</td>
 					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0 bts</td>
+					<td style={{textAlign: "right"}}>{xacc.blind_balance+0/*tobestealth*/} TEST</td>
 				</tr>
 			);
 		});
@@ -286,7 +291,7 @@ class DashboardList extends React.Component {
 					<td style={{textAlign: "right"}}>0</td>
 					<td style={{textAlign: "right"}}>0</td>
 					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0 bts</td>
+					<td style={{textAlign: "right"}}>0 TEST</td>
 				</tr>
 			);
 		}
@@ -362,7 +367,7 @@ class DashboardList extends React.Component {
 				<thead>
 					<tr>
 						<th><Icon className="grey-star" name="fi-star"/></th>
-						<th><div style={{paddingTop: "10px"}}>Stealth Account</div><div style={{fontSize:"10px",color:"lightgreen"}} onClick={Receive_Receipt_Screen}>(Cash Receipt?)</div></th>
+						<th><div style={{paddingTop: "10px"}}>Stealth Account</div><div style={{fontSize:"10px",color:"lightgreen"}} onClick={this.Receive_Receipt.bind(this)}>(Cash Receipt?)</div></th>
 						<th style={{textAlign: "right"}}>Transactions</th>
 						<th style={{textAlign: "right"}}>Blind Balance</th>
 						<th style={{textAlign: "right"}}>Stealth Balance</th>

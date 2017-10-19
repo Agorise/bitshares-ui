@@ -1,6 +1,6 @@
 import {BlindCoin} from "stealth/Transfer/transfer";
 import Stealth_DB from "stealth/DB/db";
-let Receive_Receipt_Screen = () =>{
+let Receive_Receipt_Screen = (router) =>{
     let Overlay = document.createElement("div"); //OVERLAY
     let _Window = document.createElement("div"); //Window
     let Title_Text = document.createTextNode("RECEIVING RECEIPT");
@@ -207,6 +207,8 @@ let Receive_Receipt_Screen = () =>{
             let bc = BlindCoin.fromReceipt(XAREA.value, DB);
             console.log(bc);
             DB.Stash(bc.toDBObject(),bc.ask_address());
+            router.push("/transfer");
+            router.push("/dashboard");
         });
         _window.remove();
         overlay.remove();
