@@ -337,9 +337,23 @@ class Stealth_DB
     {
         this.accounts[this.get_index("account", To_Account)].receive_receipt(BC);
         let A = this.accounts[this.get_index("account", To_Account)];
-        console.log("This?"+JSON.stringify(A.received_receipts));
         this.modify_account(A,"received_receipts",A.received_receipts);
         this.Update_Blind_Balance(A);
+    }
+    ProcessSpending(sacc_label, commit_arr,newcoin_arr)
+    {
+        for(let i=0;i<commit_arr.length;i++)
+        {
+            if(!(this.accounts[this.get_index("account", sacc_label)].mark_spent(commit_arr[i]))){return false; console.log("ERROR! Process Spending/Acc.mark_spent: No such coin!");};
+        }
+        for(let x=0;x<newcoin_arr.length;x++)
+        {
+            this.accounts[this.get_index("account", sacc_label)].receive_receipt(newcoin_arr[x]);
+        }
+        let A = this.accounts[this.get_index("account", sacc_label)];
+        this.modify_account(A,"received_receipts",A.received_receipts);
+        this.Update_Blind_Balance(A);
+        return false;
     }
 }
 export default Stealth_DB;

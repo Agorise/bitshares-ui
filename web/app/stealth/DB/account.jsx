@@ -60,16 +60,36 @@ class Stealth_Account
     {
         this.sent_receipts.push(R);
     }
+    search_bcommit(c)
+    {
+        for(let i=0;i<this.received_receipts.length;i++)
+        {
+            if(this.received_receipts[i].commitment == c)
+            {
+                return i;
+            }
+        }
+        return false;
+    }
+    mark_spent(c)
+    {
+        let found = this.search_bcommit(c);
+        if(found!==false)
+        {
+            this.received_receipts[found].spent = true;
+            return true;
+        }
+        return false;
+    }
     update_blind_balance()
     {
         let result = null;
         for(let i=0;i<this.received_receipts.length;i++)
         {
-            result += parseFloat(this.received_receipts[i].value);
-        }
-        for(let i=0;i<this.sent_receipts.length;i++)
-        {
-            result -= parseFloat(this.sent_receipts[i].value);
+            if(!this.received_receipts[i].spent)
+            {
+                result += parseFloat(this.received_receipts[i].value);
+            }
         }
         result /= 100000;
         this.blind_balance = result;
