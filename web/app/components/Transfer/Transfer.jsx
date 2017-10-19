@@ -21,6 +21,7 @@ import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
 import {Stealth_Transfer} from "stealth/Transfer/transfer";
+import {BlindCoin,StealthID} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
 class Transfer extends React.Component {
 
@@ -285,15 +286,20 @@ class Transfer extends React.Component {
                                       precision: asset.get("precision")});
 
         let DB = this.state.SDB;
-        let From = this.state.from_name;
-        let To = this.state.to_name;
+        let FromID = StealthID.findCredentialed(this.state.from_name, DB);
+        let ToID = StealthID.findAny(this.state.to_name, DB);
         let AssetObj = this.state.asset;
         let Amount = sendAmount.getAmount();
-        let Transfer = new Stealth_Transfer(DB,From, To, AssetObj, Amount,Transaction_Type);
-        Transfer.To_Stealth()
+        let Transfer = new Stealth_Transfer(FromID,ToID,AssetObj,Amount,
+                                            Transaction_Type);
+        Transfer.messagetxt = this.state.memo;
+        Transfer.Transfer()
         .then((r)=>{
-            Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,To);
-            DB.Log_Sent_Receipt(From,To,r.output_meta[0].confirmation_receipt,Amount);
+            /***/ console.log("Success!", r);
+            Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,
+                                ToID.markedlabel);
+            DB.Log_Sent_Receipt(FromID.markedlabel,ToID.markedlabel,
+                                r.output_meta[0].confirmation_receipt,Amount);
         })
         .catch((x)=>{
             console.log(x);
@@ -314,7 +320,7 @@ class Transfer extends React.Component {
             return 99; // Not ready yet...
         }
         if(From_B && BUTTONTYPE > 0) {        // Hidden to...
-            return 99; // Not ready yet...
+            return 1; // Not ready yet...
         }
         return 999; // Not defined...
         // Remove... but what's the handleChange stuff?
