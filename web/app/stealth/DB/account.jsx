@@ -33,7 +33,7 @@ class Stealth_Account
         this.account = account;
         this.sent_receipts = sent_receipts;
         this.received_receipts = received_receipts;
-        this.balance = balance;
+        this.blind_balance = balance;
     }
     new_account(label, account)
     {
@@ -49,6 +49,7 @@ class Stealth_Account
             this.account = account;
             this.sent_receipts = [];
             this.received_receipts = [];
+            this.blind_balance = 0;
         }
         else
         {
@@ -59,30 +60,25 @@ class Stealth_Account
     {
         this.sent_receipts.push(R);
     }
-    update_balance()
+    update_blind_balance()
     {
-        let result = 0;
-        for(let x = 0;x<2;x++)
+        let result = null;
+        for(let i=0;i<this.received_receipts.length;i++)
         {
-            for(let i=0;i<this.received_receipts;i++)
-            {
-                if(x == 0)
-                {
-                    result+=parseFloat(this.received_receipts[i].value);
-                }
-                if(x == 1)
-                {
-                    result-=parseFloat(this.sent_receipts[i].value);
-                }
-            }
+            result += parseFloat(this.received_receipts[i].value);
         }
-
-        this.balance = result;
+        for(let i=0;i<this.sent_receipts.length;i++)
+        {
+            result -= parseFloat(this.sent_receipts[i].value);
+        }
+        result /= 100000;
+        this.blind_balance = result;
     }
     receive_receipt(R)
     {
+        if(this.received_receipts === null || this.received_receipts === undefined){this.received_receipts = [];}
         this.received_receipts.push(R);
-        this.update_balance();
+        this.update_blind_balance();
     }
 }
 export default Stealth_Account;

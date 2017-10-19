@@ -206,7 +206,7 @@ let Receive_Receipt_Screen = () =>{
         DB.Initialize().then(()=>{
             let bc = BlindCoin.fromReceipt(XAREA.value, DB);
             console.log(bc);
-            //DB.Stash(bc.toDBObject(),bc.ask_address());
+            DB.Stash(bc.toDBObject(),bc.ask_address());
         });
         _window.remove();
         overlay.remove();

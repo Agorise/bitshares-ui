@@ -26,7 +26,7 @@ class Stealth_DB
         this.label = "";
         this.pubkey = "";
         this.IDB.version(1).stores({
-            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts, balance",
+            stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts, blind_balance",
             stealth_contacts: "id++,label,public_key",
             sent_pbreceipts: "id++,from,to,receipt,value"
         });
@@ -36,7 +36,7 @@ class Stealth_DB
         let Accounts = this.IDB.stealth_accounts;
         return Accounts.each(a=>{
             let SACC = new Stealth_Account();
-            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts,a.balance);
+            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts,a.blind_balance);
             this.accounts.push(SACC);
         });
     }
@@ -91,7 +91,9 @@ class Stealth_DB
             private_key: A.privatekey,
             public_key: A.publickey,
             associated_account: A.account,
-            sent_receipts: []
+            sent_receipts: A.sent_receipts,
+            received_receipts: A.received_receipts,
+            blind_balance: A.blind_balance
         }).then(()=>{this.accounts.push(A);});
         return true;
     }
@@ -120,7 +122,7 @@ class Stealth_DB
     {
         if(A !== false && A!==null)
         {
-            this.IDB.stealth_accounts.where("label").equals(A.label).modify({what: to});
+            this.IDB.stealth_accounts.where("label").equals(A.label).modify({[what]:to});
             this.Load_Accounts();
             return true;
         }
@@ -289,6 +291,11 @@ class Stealth_DB
         }
         return false;
     }
+    Update_Blind_Balance(A)
+    {
+        A.update_blind_balance();
+        this.modify_account(A,"blind_balance",A.blind_balance);
+    }
     /* PrivKeyFinder(publickey)
      * @publickey: Public key of the account you are searching for. (String, E.g: "BTSxyz.....")
      * @Return: privatekey (String) or false.
@@ -317,8 +324,8 @@ class Stealth_DB
         if(this.Is_Public(a)){Apublic = true; A=a;}else{A = this.get_account(a);}
         if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
         {if(this.Is_Public(c)){Cpublic = true;C=c;}else{C = this.get_contact(c);}}else{C = c;}
-        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); Update_Balance(A);}//Public To Stealth
-        if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); modify_account(A,"sent_receipts",A.sent_receipts); Update_Balance(A);} //Stealth To Stealth
+        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); this.Update_Blind_Balance(A);}//Public To Stealth
+        if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); this.modify_account(A,"sent_receipts",A.sent_receipts); this.Update_Blind_Balance(A);} //Stealth To Stealth
     }
 
     /* Stash(Receipt)
@@ -328,9 +335,11 @@ class Stealth_DB
     */
     Stash(BC, To_Account)
     {
-        this.accounts[this.get_index("account", To_Account)].receive_receipt(B);
+        this.accounts[this.get_index("account", To_Account)].receive_receipt(BC);
         let A = this.accounts[this.get_index("account", To_Account)];
-        modify_account(A,"received_receipts",A.received_receipts);
+        console.log("This?"+JSON.stringify(A.received_receipts));
+        this.modify_account(A,"received_receipts",A.received_receipts);
+        this.Update_Blind_Balance(A);
     }
 }
 export default Stealth_DB;
