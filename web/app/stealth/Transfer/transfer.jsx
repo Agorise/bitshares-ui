@@ -16,7 +16,7 @@ import StealthZK from "stealth/Transfer/stealthzk.js";
 import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
 import {Long} from "bytebuffer";
 
-const DEBUG = false;
+const DEBUG = true;
 
 
 /**
@@ -344,9 +344,10 @@ class Stealth_Transfer
             let blind_factor = hash.sha256(child);  // (unless blindsum needed)
 
             if (needblindsum) {
-                //blind_factor = StealthZK.BlindSum(blind_factors_in,
-                //                                  blind_factors_out);
-                blind_factor = CoinsIn[0].blinding_factor;  // ** TEMP TEMP **
+                blind_factor = StealthZK.BlindSum(blind_factors_in,
+                                                  blind_factors_out);
+            } else {
+                blind_factors_out.push(blind_factor);
             }
 
             let amount = Recipient.amountdue.amount;

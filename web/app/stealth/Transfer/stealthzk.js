@@ -47,7 +47,7 @@ const G2 = Point.fromAffine(secp256k1,
 class StealthZK {
 
     constructor() {}
-    
+
     /**
      *  Pedersen commitment for blind TX on secp256k1 curve.
      *
@@ -61,12 +61,44 @@ class StealthZK {
         /*console.log("Requesting commitment of", amount,
                     "with blind factor", blind_factor);
         */
-        
+
         // The commitment is a curve point: C = G * j + G2 * k
         let commit_C = G.multiplyTwo(BigInteger.fromBuffer(blind_factor),
                                      G2, BigInteger.valueOf(amount));
         // Encode and return as 33-byte buffer in "compressed" format:
         return commit_C.getEncoded(true);
+    }
+
+    /**
+     * Taking a guess here.  Really need to inspect and test edge cases.
+     *
+     * In particular, not sure how BigInteger handles negative values
+     * when blinds_neg exceeds blinds_pos.
+     */
+    static BlindSum(blinds_pos, blinds_neg) {
+
+        let verbose = true;
+        let accumulator = BigInteger.ZERO;
+
+        verbose && console.log("Blind Sum Accumulator:");
+
+        for (let i = 0; i < blinds_pos.length; i++) {
+            let blind = BigInteger.fromBuffer(blinds_pos[i]);
+            accumulator = accumulator.add(blind);
+            verbose && console.log("Accumul add: " + blind.toHex(32));
+        }
+
+        for (let i = 0; i < blinds_neg.length; i++) {
+            let blind = BigInteger.fromBuffer(blinds_neg[i]);
+            accumulator = accumulator.subtract(blind);
+            verbose && console.log("Accumul sub: " + blind.toHex(32));
+        }
+
+        verbose && console.log("Accumulator: " + accumulator.toHex(32));
+        accumulator = accumulator.mod(n);
+        verbose && console.log("Accum mod n: " + accumulator.toHex(32));
+        return accumulator.toBuffer(32);
+
     }
 
 }
