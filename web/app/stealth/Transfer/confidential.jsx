@@ -189,8 +189,10 @@ class blind_confirmation
 {
     constructor()
     {
-        this.output_meta = new blind_output_meta;  // actually a vector of these
-        this.trx;   // signed trx
+        this.output_meta = [];      // Array of blind_output_meta
+        this.consumed_commits = []; // Array of commitments consumed as
+                                    // inputs. (Array of hex strings)
+        this.trx;                   // Signed transaction. (TransactionBuilder)
     }
 }
 
@@ -295,8 +297,8 @@ class blind_input
 {
     constructor()
     {
-        this.commitment = []; //commitment type fcc/ecc
-        this.owner = []; //authority
+        this.commitment = [];   // 33 byte Buffer
+        this.owner = [];        // authority
     }
 }
 
