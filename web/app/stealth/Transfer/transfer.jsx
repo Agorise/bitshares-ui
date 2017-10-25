@@ -1,3 +1,4 @@
+import assert from "assert";
 import AccountStore from "stores/AccountStore";
 import AssetStore from "stores/AssetStore";
 import WalletDb from "stores/WalletDb";
@@ -12,7 +13,7 @@ import {blind_output,blind_memo,blind_input,blind_output_meta,
         transfer_to_blind_op,transfer_from_blind_op,blind_transfer_op
        } from "stealth/Transfer/confidential";
 import StealthZK from "stealth/Transfer/stealthzk.js";
-import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js"; //(Defined but never used, why?)
+import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
 import {Long} from "bytebuffer";
 
 const DEBUG = true;
@@ -62,6 +63,14 @@ class StealthID {
     static stripStealthMarker(labelstring) {
         return (labelstring[0]==="@") ? labelstring.slice(1)
                                       : labelstring;
+    }
+
+    /**
+     * Accepts a variety of input forms and uses them to set the BlindCoin
+     * list of a StealthID.
+     */
+    setCoins(input) {
+        this.coins = input; // TODO: check form of input and convert accordingly.
     }
 
     /**
@@ -141,39 +150,15 @@ class Stealth_Transfer
         this.asset = asset;     // object, use .get("id"), eg, to get "1.3.0"
         this.amount = amount;   // in base units (ie 1.0 BTS = 100000)
         this.transaction_type = transaction_type;
-        this.messagetxt = "";   // The memo field; Generally ignored for
-                                // stealth TX but gonna temporarily use it to
-                                // pass receipt text.
 
+        console.log("Initializing a Stealth Transfer of " + this.amount
+                    + " from " + this.from.markedlabel
+                    + " to " + this.to.markedlabel
+                    + " with up to " + this.from.coins.length
+                    + " possible Coin inputs" /*, this */);
         DEBUG && console.log("WSCAT: Suggested rpc tests follow.\n"
                              + "WSCAT: Connect with: "
                              + "wscat -c wss://node.testnet.bitshares.eu/");
-        console.log("STEALTHXFR: Constructor after interpretation", this);
-    }
-
-    /** DEPRECATED - breaks at the moment
-     */
-    findStealthAccountMatchingPubkey(pubkey) {
-        // TODO tolerate string or object arg; for now assume obj
-        let pubkeystring = pubkey.toString(); //(Defined but never used, why?)
-        let accounts = this.saccs; 
-        for(let i=0;i<accounts.length;i++) {
-            if(accounts[i].publickey == pubkey.toString()) {
-                let privkey = PrivateKey.fromWif(accounts[i].privatekey);
-                // TODO assert privkey PubKey matches accounts[i] pubkey
-                return new StealthID(accounts[i].label,
-                                     privkey.toPublicKey(),
-                                     privkey);}
-        }
-        throw new Error("No privkey for pubkey in saccs");
-    }
-
-    /**
-     *  A mis-named dispatcher function (preserving call from
-     *  components/Transfer). *TEMP*
-     */
-    To_Stealth() {
-        return this.Transfer();
     }
 
     /**
@@ -297,48 +282,6 @@ class Stealth_Transfer
     }
 
     /**
-     *  Patterned after wallet_api::receive_blind_transfer() in wallet.cpp.
-     *
-     *  This maybe should be static but stealth account references need to be
-     *  moved to StealthDB class first.
-     */
-    Receive_Blind_Transfer (receipt_txt) {
-
-        let confirmation = new stealth_confirmation();
-        confirmation.ReadBase58(receipt_txt);
-
-        let whoto = this.findStealthAccountMatchingPubkey(confirmation.to);
-        let secret = whoto.privkey.get_shared_secret(
-            confirmation.one_time_key);         // 512-bits for aes key/iv
-        let child = hash.sha256(secret);        // 256-bit pub/priv key offset
-        let child_priv_key = whoto.privkey.child(child); // Sender can't know
-        let memo = new stealth_cx_memo_data;
-        memo.Decrypt(confirmation.encrypted_memo, secret);
-
-        let result = {};        // TODO define object class
-        result.to_key = whoto.pubkey;   // Might want to use toString here
-        result.to_label = "dummytest";
-        result.amount = memo.amount;
-        result.control_authority = {"weight_threshold":1,"account_auths":[],
-                                    "key_auths":[[child_priv_key.toPublicKey(),1]],
-                                    "address_auths":[]};;
-        result.auth_priv_key = child_priv_key;  // temp; should be pushed to DB
-        result.data = memo;
-
-        // TODO confirm amount matches commitment and other checks
-        // TODO pushing into DB
-
-        /***/ console.log("ReceiveBT result:", result);
-        DEBUG && console.log("WSCAT: Test for commitment in blockchain with:\n"
-                             + 'WSCAT: {"method": "call", "params":'
-                             + '[0, "get_blinded_balances", [["'
-                             + Buffer.from(result.data.commitment).toString("hex")
-                             + '"]]], "id": 3}');
-        return result;
-
-    }
-
-    /**
      *  Blind to Blind transfer.
      *
      *  If @to_temp_acct==true, then "to" authority is anonymous, and
@@ -350,65 +293,92 @@ class Stealth_Transfer
      *  output.  This will be fixed when we have range proofs.
      */
     Blind_to_Blind(to_temp_acct=false) {
-        /**/console.log("BLIND2BLIND: (TEMP CODE) This will transfer the entire "
-                        + "balance of the RECEIPT provided on memo line to a "
-                        + "blind account. Input receipt is:" + this.messagetxt
-                        + "At present, this ALPHA code only handles one blind "
-                        + "input and one bind output.");
+
+        let bop = new blind_transfer_op;        // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
-        let blinding_factors = []; //(Defined but never used why?)
-        let total_amount = 0;
-        let bop = new blind_transfer_op;        // The "op" that we will build
 
-        let feeamount = 500100;            // TEMP need to get from chain
-        let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};
+        let feebase = 100;      // Base fee      (TODO: Need to get from chain)
+        let feeper = 500000;    // Per-input fee (TODO: Need to get from chain)
+
+        let CoinsIn = BlindCoin.getCoinsSatisfyingAmount(
+                        this.from.coins, (this.amount + feebase), feeper);
+        /***/ console.log("Selected " + CoinsIn.length
+                          + " Coins as input to Blind2Blind transaction.");
+        assert(CoinsIn.length > 0, "Insufficient spendable coins");
+        blindconf.consumed_commits.push(...CoinsIn.map(a=>a.commitmentHex()));
+
+        let totalfee = feebase + feeper * CoinsIn.length;
+        let feeamountasset
+            = {"amount":totalfee, "asset_id":this.asset.get("id")};
         bop.fee = feeamountasset;
+        let changeamount = BlindCoin.valueSum(CoinsIn) - this.amount - totalfee;
 
-        let in_rcpt = this.Receive_Blind_Transfer(this.messagetxt);
+        /***/ console.log ("Change amount: " + changeamount);
 
-        let input = new blind_input;
-        input.commitment = in_rcpt.data.commitment;
-        input.owner = in_rcpt.control_authority;
-        bop.inputs = [input];
+        let Recipients = [this.to];
+        Recipients[0].amountdue
+            = {"amount":this.amount, "asset_id":this.asset.get("id")};
+        if (changeamount > 0) {
+            Recipients.push(this.from); // Change recipient is sender
+            Recipients[1].amountdue = {"amount":changeamount,
+                                       "asset_id":this.asset.get("id")};
+        }
 
-        // Loop over recipients (right now only support one)
-        let one_time_key = key.get_random_key();
-        let to_key = this.to.pubkey;
-        let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
-        let child = hash.sha256(secret);        // 256-bit pub/priv key offset
-        let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
-        let blind_factor = in_rcpt.data.blinding_factor; //hash.sha256(child);
-                        // TEMP:^^ To handle multiple inputs need blind_sum
+        let blind_factors_in = CoinsIn.map(a => a.blinding_factor);
+        let blind_factors_out = [];
+        let inputs = BlindCoin.getBlindInputsFromCoins(CoinsIn);
+        bop.inputs = inputs;
 
-        let amount = in_rcpt.amount.amount - feeamount;  // TEMP
-        let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
-        /***/ console.log("feeamt,amt,tots", feeamountasset,amountasset,
-                         feeamountasset.amount + amountasset.amount);
-        total_amount += amount;
-        blinding_factors = [blind_factor];      // push_back when loop
+        for (let i = 0; i < Recipients.length; i++) {   // For each Recipient:
 
-        let out = new blind_output;             // One output per recipient
-        out.owner = {"weight_threshold":to_temp_acct?0:1,
-                     "account_auths":[],
-                     "key_auths":to_temp_acct?[]:[[to_key.child(child),1]],
-                     "address_auths":[]};
-        out.commitment = StealthZK.BlindCommit(blind_factor,amount);
-        out.range_proof = new Uint8Array(0);    // (Not needed for 1 output)
+            let needrangeproof = (Recipients.length > 1);
+            let needblindsum = (i == Recipients.length-1);
+            let Recipient = Recipients[i];
 
-        let meta = new blind_output_meta;       // Metadata for each output, to
-        meta.label = this.to.label;             // be kept in blindconf for our
-        meta.auth = out.owner;                  // history/records.
-        meta.SetKeys(one_time_key, to_key);
-        meta.SetMemoData(amountasset, blind_factor, out.commitment);
-        meta.ComputeReceipt(secret);            // secret used as AES key/iv
+            let one_time_key = key.get_random_key();
+            let to_key = Recipient.pubkey;
+            let secret = one_time_key.get_shared_secret(to_key);  // 512-bits
+            let child = hash.sha256(secret);        // 256-bit pub/priv key offset
+            let nonce = one_time_key.toBuffer();    // 256-bits, (d in Q=d*G)
+            let blind_factor = hash.sha256(child);  // (unless blindsum needed)
 
-        out.stealth_memo = meta.confirmation;  // Omit???
-        blindconf.output_meta = [meta];        // needs to be push_back()
-        bop.outputs = [out];                   // needs to be push_back()
+            if (needblindsum) {
+                blind_factor = StealthZK.BlindSum(blind_factors_in,
+                                                  blind_factors_out);
+            } else {
+                blind_factors_out.push(blind_factor);
+            }
 
-        /***/ console.log("Receipt:  ", meta.confirmation_receipt);
-        // Loop over recipients would end here
+            let amount = Recipient.amountdue.amount;
+            let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
+            /***/ console.log("Output " + (1+i) + " of " + Recipients.length
+                              + " to " + Recipient.markedlabel
+                              + "; amount = " + amount);
+
+            let out = new blind_output;             // One output per recipient
+            out.owner = {"weight_threshold":to_temp_acct?0:1,
+                         "account_auths":[],
+                         "key_auths":to_temp_acct?[]:[[to_key.child(child),1]],
+                         "address_auths":[]};
+            out.commitment = StealthZK.BlindCommit(blind_factor,amount);
+            out.range_proof = needrangeproof ?
+                new Uint8Array(0) :             // TODO: needs to be range proof
+                new Uint8Array(0);              // (Not needed for 1 output)
+
+            let meta = new blind_output_meta;       // Metadata for each output, to
+            meta.label = Recipient.label;           // be kept in blindconf for our
+            meta.auth = out.owner;                  // history/records.
+            meta.SetKeys(one_time_key, to_key);
+            meta.SetMemoData(amountasset, blind_factor, out.commitment);
+            meta.ComputeReceipt(secret);            // secret used as AES key/iv
+
+            out.stealth_memo = meta.confirmation;   // Omit??? (Serializer spits)
+            blindconf.output_meta.push(meta);
+            bop.outputs.push(out);
+
+            /***/ console.log("Receipt:  ", meta.confirmation_receipt);
+        } // End loop over Recipients
 
         let tr = new TransactionBuilder();
         tr.add_type_operation("blind_transfer",{
@@ -418,13 +388,15 @@ class Stealth_Transfer
         });
         tr.set_required_fees();         // Async.  Promise?
         tr.update_head_block();         // Async.  Promise?
-        tr.add_signer(in_rcpt.auth_priv_key);
+        CoinsIn.forEach(coin => {tr.add_signer(coin.auth_privkey);});
+        blindconf.trx=tr;
+        /***/ console.log("Blindconf is currently:", blindconf);
         /***/ console.log("Built inital B2B TX:", tr);
 
         if (!to_temp_acct) {
             // Then process TX now
             return WalletDb.process_transaction(tr,null,true)
-                .then(()=>{blindconf.trx = tr; return blindconf;})
+                .then(()=> {/*blindconf.trx = tr;*/ return blindconf;})
                 .catch((err)=>{
                     return new Error("B2B WalletDb.process_transaction error: ",
                                  JSON.stringify(err));
@@ -502,7 +474,7 @@ class Stealth_Transfer
  * let pkeyfind = (addr)=>{return "5xxxxx";} // (must return WIF from addr)
  * let bc = BlindCoin.fromReceipt(rcpt_txt, pkeyfind);
  * DB.Stash(bc.toDBObject(),bc.ask_address());
- *  
+ *
  * The ask_address() method returns the address that was used to request
  * blind funds.  This can be used to associate the coin with the blind
  * account containing the address when storing in the database.  The address
@@ -548,16 +520,19 @@ class BlindCoin {
      * Returns the "asking address" which was used to request the funds
      * contained by the coin.  String value, eg, "BTSxxxx..."
      */
-    ask_address() {
-        return this.asking_pubkey.toString();
-    }
+    ask_address() {return this.asking_pubkey.toString();}
+    valueString() {return this.value.toString();}
+    commitmentHex() {return this.commitment.toString("hex");}
+    blindingFactorHex() {return this.blinding_factor.toString("hex");}
 
     /**
      * Gets a "blind coin" from a base58-encoded receipt if a private key
-     * needed to decode the receipt can be found.
+     * needed to decode the receipt can be found.  See also fromReceipts()
+     * for a version that returns an array from a comma-separated list of
+     * receipts.
      *
      * @arg rcpt_txt      - Receipt as base58 text
-     * @arg DB - Stealth DB 
+     * @arg DB - Stealth DB
      *
      * returns: false || new BlindCoin(...)
      *
@@ -597,7 +572,9 @@ class BlindCoin {
                                    whoto.pubkey
                                   );
 
-        /***/ console.log("Blind Coin read from Receipt:", result);
+        /***/ console.log("Blind Coin read from Receipt: "
+                          + result.valueString()
+                          + " at: " + result.commitmentHex());
         DEBUG && console.log("WSCAT: Test for commitment in blockchain with:\n"
                              + 'WSCAT: {"method": "call", "params":'
                              + '[0, "get_blinded_balances", [["'
@@ -605,6 +582,98 @@ class BlindCoin {
                              + '"]]], "id": 3}');
         return result;
 
+    }
+
+    /**
+     * This one returns an ARRAY of BlindCoins from a comma and/or
+     * whitespace separated list of receipts.
+     */
+    static fromReceipts(rcpts, DB) {
+        if (typeof rcpts === "string") {  // Assume CSV base58 receipts
+
+            let nonempty = function(entry){return entry.length>0};
+            let rcpt_arr = rcpts.split(/\s*,\s*/).filter(nonempty);
+            let bc_arr = [];
+            for (let i = 0; i < rcpt_arr.length; i++) {
+                bc_arr.push(BlindCoin.fromReceipt(rcpt_arr[i],DB));
+            }
+
+            return bc_arr;
+
+        } else {
+
+            throw new Error("Could not interpret receipts list input");
+
+        }
+    }
+
+
+    /**
+     * Determines a minimum subset of @coins totaling @amount considering a
+     * cost of @feeper per each coin used. Returns the subset or [] if total
+     * cannot be met.
+     *
+     * By default does NOT check the 'spent' member of the coin (assumes
+     * list has already been properly filtered/verified) but can set
+     * flags.onlyunspent to filter coins if desired (this does not check the
+     * blockchain, only the coins[i].spent).
+     *
+     * TODO: This is not asset-aware. Does not check that coins have
+     * compatible asset-ID, and assumes amounts are in core asset.  Will
+     * break if used for other assets. TODO
+     */
+    static getCoinsSatisfyingAmount(coins, amount, feeper,
+                                    flags = {onlyunspent:false,
+                                             spenddust:false}) {
+
+        let tally = Long.fromInt(0);
+        let fee = 0;
+        let included = [];
+
+        // TODO (maybe) sort coins so that biggest checked first, this will
+        // make "minimum" subset. (Otherwise, it's just a subset.)
+
+        for (let i = 0; i < coins.length; i++) {
+            let canspend = !(coins.onlyunspent && coins[i].spent);
+            let shouldspend = (coins[i].value > feeper) || flags.spenddust;
+            if (canspend && shouldspend) {
+                tally = tally.add(coins[i].value);
+                fee += feeper;
+                included.push(coins[i]);
+            }
+            if (tally >= amount + fee) break;
+
+        }
+        return (tally >= amount + fee) ? included : [];
+
+    }
+
+    /**
+     * Convert a list of BlindCoins into "inputs" for a blind operation.
+     */
+    static getBlindInputsFromCoins(coins) {
+        let inputs = [];
+        for (let i = 0; i < coins.length; i++) {
+            let input = new blind_input;
+            input.commitment = coins[i].commitment;
+            input.owner = {"weight_threshold":1,"account_auths":[],
+                           "key_auths":[[coins[i].auth_privkey.toPublicKey(),1]],
+                           "address_auths":[]};
+            inputs.push(input);
+        }
+        return inputs;
+    }
+
+    /**
+     * Gives the summed value of an array of BlindCoin objects.
+     * NOTE: Returns a Long.
+     */
+    static valueSum(coins) {
+        let sum = Long.fromInt(0);
+        for (let i = 0; i < coins.length; i++) {
+            sum = sum.add(coins[i].value);
+        }
+        return sum;
     }
 
     /**
@@ -616,10 +685,10 @@ class BlindCoin {
         return {
             ver: "bc01",
             auth_privkey:     this.auth_privkey.toWif(),
-            value:            this.value.toString(),
+            value:            this.valueString(),
             asset_id:         this.asset_id,
-            blinding_factor:  this.blinding_factor.toString("hex"),
-            commitment:       this.commitment.toString("hex"),
+            blinding_factor:  this.blindingFactorHex(),
+            commitment:       this.commitmentHex(),
             spent:            this.spent
         };
     }

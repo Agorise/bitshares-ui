@@ -25,6 +25,7 @@ export const settingsAPIs = {
         {url: "wss://dexnode.net/ws", location: "Dallas, USA"},
         {url: "wss://altcap.io/ws", location: "Paris, France"},
         {url: "wss://bitshares.crypto.fans/ws", location: "Munich, Germany"},*/
+        {url: "ws://128.0.69.157:21012", location: "Agorise"},
         {url: "wss://node.testnet.bitshares.eu", location: "Public Testnet Server (Frankfurt, Germany)"}
     ],
     DEFAULT_FAUCET: "https://testnet.bitshares.eu",

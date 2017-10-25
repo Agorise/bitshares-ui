@@ -287,15 +287,19 @@ class Transfer extends React.Component {
 
         let DB = this.state.SDB;
         let FromID = StealthID.findCredentialed(this.state.from_name, DB);
+        FromID.setCoins(BlindCoin.fromReceipts(this.state.memo,DB));
         let ToID = StealthID.findAny(this.state.to_name, DB);
         let AssetObj = this.state.asset;
         let Amount = sendAmount.getAmount();
         let Transfer = new Stealth_Transfer(FromID,ToID,AssetObj,Amount,
                                             Transaction_Type);
-        Transfer.messagetxt = this.state.memo;
         Transfer.Transfer()
         .then((r)=>{
+            // TODO: I've seen the following log message on failed broadcasts,
+            // so getting here is not proof positive of success.
             /***/ console.log("Success!", r);
+            // TODO: r.consumed_commits contains list of consumed commitments.
+            // TODO: Stealth DB needs to be told to set .spent on these commits.
             Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,
                                 ToID.markedlabel);
             DB.Log_Sent_Receipt(FromID.markedlabel,ToID.markedlabel,
