@@ -16,6 +16,7 @@ import SettingsActions from "actions/SettingsActions";
 import {Apis} from "bitsharesjs-ws";
 import utils from "common/utils";
 import AccountSelector from "../Account/AccountSelector";
+import Stealth_DB from "stealth/DB/db";
 
 class WalletUnlockModal extends React.Component {
 
@@ -113,6 +114,10 @@ class WalletUnlockModal extends React.Component {
             this.setState({password_error: true});
             return false;
         } else {
+            let SDB = new Stealth_DB();
+            SDB.Initialize().then(()=>{
+                //SDB.Unlock(password); too alpha atm need to test further.
+            });
             if (!passwordLogin) {
                 this.refs.password_input.clear();
             } else {

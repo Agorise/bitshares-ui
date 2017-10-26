@@ -1,6 +1,7 @@
 import {BlindCoin} from "stealth/Transfer/transfer";
 import Stealth_DB from "stealth/DB/db";
-let Receive_Receipt_Screen = (router) =>{
+import {ChainConfig} from "bitsharesjs-ws";
+let Receive_Receipt_Screen = () =>{
     let Overlay = document.createElement("div"); //OVERLAY
     let _Window = document.createElement("div"); //Window
     let Title_Text = document.createTextNode("RECEIVING RECEIPT");
@@ -204,11 +205,21 @@ let Receive_Receipt_Screen = (router) =>{
     {
         let DB = new Stealth_DB();
         DB.Initialize().then(()=>{
+            console.log("XAREA VALUE!: "+XAREA.value);
             let bc = BlindCoin.fromReceipt(XAREA.value, DB);
             console.log(bc);
-            DB.Stash(bc.toDBObject(),bc.ask_address());
-            router.push("/transfer");
-            router.push("/dashboard");
+            if(DB.Stash(bc.toDBObject(),bc.ask_address()))
+            {
+                let A = DB.Get("account",bc.ask_address());
+                let balance = document.getElementById("blind_balance_"+A.label);
+                balance.value = A.blind_balance;
+                balance.innerText = A.blind_balance;
+                balance.innerHTML = A.blind_balance;
+                let tbalance = document.getElementById("total_balance_"+A.label);
+                tbalance.value = A.blind_balance+0+" "+ChainConfig.address_prefix;//to be stealth balance
+                tbalance.innerText = A.blind_balance+0+" "+ChainConfig.address_prefix;//to be stealth balance
+                tbalance.innerHTML = A.blind_balance+0+" "+ChainConfig.address_prefix;//to be stealth balance
+            }
         });
         _window.remove();
         overlay.remove();

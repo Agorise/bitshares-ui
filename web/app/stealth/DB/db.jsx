@@ -3,6 +3,7 @@ import Stealth_Contact from "./contact";
 import Blind_Receipt from "./blind_receipt";
 import Dexie from "dexie";
 import AccountStore from "stores/AccountStore";
+import {ChainConfig} from "bitsharesjs-ws";
 /* Standards:
  * Capital letters represent Objects.
  * Lowercase letters represent strings.
@@ -18,6 +19,7 @@ class Stealth_DB
     constructor()
     {
         this.initialized = false;
+        this.tempy = null;
         this.IDB = new Dexie("Stealth_Wallet");
         this.accounts = [];
         this.contacts = [];
@@ -128,7 +130,6 @@ class Stealth_DB
         }
         return false;
     }
-
     delete_account(c)
     {
         let X = this.get_account(c);
@@ -174,16 +175,60 @@ class Stealth_DB
     {
         if(x !== null)
         {
-            let result = "";
-            for(var i=1;i<x.length;i++)
+            if(x[0] === "@")
             {
-                result+=x[i];
+                let result = "";
+                for(var i=1;i<x.length;i++)
+                {
+                    result+=x[i];
+                }
+                return result;
             }
-            return result;
+        }
+        return x;
+    }
+    update_account(A)
+    {
+        this.modify_account(A, label, A.label);
+        this.modify_account(A, public_key, A.publickey);
+        this.modify_account(A, private_key, A.privatekey);
+        this.modify_account(A, brain_key, A.brainkey);
+        this.modify_account(A, blind_balance, A.blind_balance);
+        this.modify_account(A, sent_receipts, A.sent_receipts);
+        this.modify_account(A, received_receipts, A.received_receipts);
+    }
+    Lock()
+    {
+        for(let i=0;i<this.accounts.length;i++)
+        {
+            this.accounts[i].lock(this.tempy);
+            this.update_account(this.accounts[i]);
+        }
+        this.tempy = null;
+    }
+    Unlock(password)
+    {
+        this.tempy = password;
+        for(let i=0;i<this.accounts.length;i++)
+        {
+            this.accounts[i].unlock(this.tempy);
+            this.update_account(this.accounts[i]);
+        }
+    }
+    check_existing_receipts(R)
+    {
+        for(let i=0;i<this.accounts.length;i++)
+        {
+            for(let x = 0;x<this.accounts[i].received_receipts.length;x++)
+            {
+                if(this.accounts[i].received_receipts[x].commitment === R.commitment)
+                {
+                    return true;
+                }
+            }
         }
         return false;
     }
-
     /*Initialize()
      * First function to be called, It loads the database and returns a promise. Use the callback method to execute whatever you need with it.
      * Usage Example: 
@@ -223,6 +268,12 @@ class Stealth_DB
             else{console.log("Error in creating contact!");return false;}
         }
     }
+    /* get_index(What, key)
+     * Searches the database for an account or contact, using the passed key, and returns that object.
+     * @what: "account" or "contact"
+     * @key: label, public, privatkey string.
+     * returns the account index in this DB accounts or contacts array.(not indexeddb.)
+    */
     get_index(What, key)
     {
         let what = What.toLowerCase();
@@ -245,12 +296,35 @@ class Stealth_DB
             searchee = this.accounts;
             for(let i=0;i<searchee.length;i++)
             {
-                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey)
+                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey === key)
                 {
                     return i;
                 }
             }
         }
+        return false;
+    }
+
+    check_valid_publickey(key)
+    {
+        let prefix = ChainConfig.address_prefix;
+        if(key.length > prefix.length)
+        {
+            for(let i=0;i<prefix.length;i++)
+            {
+                if(key[i] !== prefix[i])
+                {
+                    return false;
+                }
+
+            }
+            return true;
+        }
+        return false;
+    }
+    check_valid_privatekey(key)
+    {
+        if(key.length === 51 && key[0] === "5"){return true;}
         return false;
     }
     /*@Get(what, label_or_publickey)
@@ -261,9 +335,14 @@ class Stealth_DB
      * 
      * Example: Stealth_DB.Get("Account","MyAccountName") or Stealth_DB.Get("Contact","BTSaddresshere")
     */
-    Get(What, key)
+    Get(What, Key)
     {
+        let key = this.stripat(Key);
+        let pubkey = this.check_valid_publickey(key);
+        let privkey = this.check_valid_privatekey(key);
+        if(!pubkey && !privkey){key = key.toLowerCase();}
         let what = What.toLowerCase();
+        console.log("Searching for" + What +" with " + key);
         let searchee = null;
         //Searching for contact
         if(what === "contact")
@@ -283,7 +362,7 @@ class Stealth_DB
             searchee = this.accounts;
             for(let i=0;i<searchee.length;i++)
             {
-                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey)
+                if(searchee[i].label === key || searchee[i].publickey === key || searchee[i].privatekey === key)
                 {
                     return searchee[i];
                 }
@@ -291,6 +370,10 @@ class Stealth_DB
         }
         return false;
     }
+    /* Update_Blind_Balance(A)
+     * Updates the balance of the account object passed in the object, then using the object, in the DB.
+     * @A: Stealth_Account object.
+     */
     Update_Blind_Balance(A)
     {
         A.update_blind_balance();
@@ -327,7 +410,6 @@ class Stealth_DB
         if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); this.Update_Blind_Balance(A);}//Public To Stealth
         if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); this.modify_account(A,"sent_receipts",A.sent_receipts); this.Update_Blind_Balance(A);} //Stealth To Stealth
     }
-
     /* Stash(Receipt)
      * @BC: Blind_Coin object holding condensed information
      * @To_Account: Publickey of the BC's owner.
@@ -335,11 +417,24 @@ class Stealth_DB
     */
     Stash(BC, To_Account)
     {
+        if(this.check_existing_receipts(BC)){return false;};
         this.accounts[this.get_index("account", To_Account)].receive_receipt(BC);
         let A = this.accounts[this.get_index("account", To_Account)];
-        this.modify_account(A,"received_receipts",A.received_receipts);
-        this.Update_Blind_Balance(A);
+        if(A !== false)
+        {
+            this.modify_account(A,"received_receipts",A.received_receipts);
+            this.Update_Blind_Balance(A);
+            return true;
+        }
+        return false;
     }
+    /*ProcessSpending(sacc_label, commit_arr, newcoin_arr)
+     * Description: Processes spending, sets used coins as spent, and updates with new coins.
+     * @sacc_label: label of the account we're working on.
+     * @commit_arr: commitment array to set used coins as spent.
+     * @newcoin_arr: new coins (if any) to update the account with the remainder from the transaction.
+     * Returns true or false based on success.
+     */
     ProcessSpending(sacc_label, commit_arr,newcoin_arr)
     {
         for(let i=0;i<commit_arr.length;i++)
@@ -348,12 +443,105 @@ class Stealth_DB
         }
         for(let x=0;x<newcoin_arr.length;x++)
         {
-            this.accounts[this.get_index("account", sacc_label)].receive_receipt(newcoin_arr[x]);
+            if(!(this.accounts[this.get_index("account", sacc_label)].receive_receipt(newcoin_arr[x]))){return false;}
         }
         let A = this.accounts[this.get_index("account", sacc_label)];
         this.modify_account(A,"received_receipts",A.received_receipts);
         this.Update_Blind_Balance(A);
-        return false;
+        return true;
+    }
+    /* GetUnspentCoins(sacc_identifier)
+     * Description: Returns the unspent coins of the account found using the passed identifier which can be a label, public, or private key.
+     * @sacc_identifier: label, privatekey, publickey (string)
+     * returns an array of unspent BC database objects.
+    */
+    GetUnspentCoins(sacc_identifier)
+    {
+        let unspent = [];
+        let A = this.GET("account", sacc_identifier);
+        if(A === false){return A;}
+        for(let i=0;i<A.received_receipts.length;i++)
+        {
+            if(!(A.received_receipts[i].spent))
+            {
+                unspent.push(A.received_receipts[i]);
+            }
+        }
+        return unspent;
+    }
+    /*Get_Account_List()
+     * Description: Returns an array of stealth account names/labels present in the DB.
+     */
+    Get_Account_List()
+    {
+        let result = [];
+        for(let i=0;i<this.accounts.length;i++)
+        {
+            result.push("@"+this.accounts[i].label);
+        }
+        return result;
+    }
+    /*Get_Account_List()
+     * Description: Returns an array of stealth contact names/labels present in the DB.
+     */
+    Get_Contact_List()
+    {
+        let result = [];
+        for(let i=0;i<this.contacts.length;i++)
+        {
+            result.push("@"+this.contacts[i].label);
+        }
+        return result;
+    }
+
+    /* !!!
+     *Do not use what's under this yet!
+     * !!!
+    */
+
+    /* Export_Account(sacc_identifier)
+     * Description: returns an json string of the locked account you want.
+     * @sacc_identifier: label/publickey/privatekey string
+     * returns account object as json string.
+     */
+    Export_Account(sacc_identifier)
+    {
+        if(this.tempy !== null){this.Lock();}
+        let A = this.Get("account", sacc_identifier);
+        if(A === false){return false;}
+        return JSON.stringify(A);
+    }
+    /* Export_Contact(sctc_identifier)
+     * Description: returns an json string of the locked contact you want.
+     * @sctc_identifier: label/publickey/privatekey string
+     * returns contact object as json string.
+     */
+    Export_Contact(sctc_identifier)
+    {
+        if(this.tempy !== null){this.Lock();}
+        let C = this.Get("contacts", sctc_identifier);
+        if(C === false){return false;}
+        return JSON.stringify(C);
+    }
+    /* Export_DB()
+     * Description: returns an array of locked accounts & contacts for further processing
+     */
+    Export_DB()
+    {
+        let accs = [];
+        let ctcs = [];
+        let result = [];
+        for(let i=0;i<this.accounts.length;i++)
+        {
+            accs.push(this.Export_Account(this.accounts[i].label));
+        }
+        for(let i=0;i<this.contacts.length;i++)
+        {
+            ctcs.push(this.Export_Contact(this.contacts[i].label));
+        }
+        result.push(accs);
+        result.push(ctcs);
+        return result;
     }
 }
 export default Stealth_DB;

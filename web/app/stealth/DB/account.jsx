@@ -1,5 +1,6 @@
 import {PrivateKey, key} from "agorise-bitsharesjs/es";
 import Blind_Receipt from "./blind_receipt";
+import AES from "crypto-js";
 class Stealth_Account
 {
     constructor()
@@ -96,9 +97,41 @@ class Stealth_Account
     }
     receive_receipt(R)
     {
+        if(R === undefined || R === null){return false;}
         if(this.received_receipts === null || this.received_receipts === undefined){this.received_receipts = [];}
         this.received_receipts.push(R);
         this.update_blind_balance();
+        return true;
+    }
+    lock(p)
+    {
+        this.privatekey = AES.encrypt(this.privatekey,p);
+        this.brainkey = AES.encrypt(this.brainkey,p);
+        for(let i=0;i<this.received_receipts.length;i++)
+        {
+            this.received_receipts[i].auth_privkey = AES.encrypt(this.received_receipts[i].auth_privkey,p);
+            this.received_receipts[i].blinding_factor = AES.encrypt(this.received_receipts[i].blinding_factor,p);
+            this.received_receipts[i].commitment = AES.encrypt(this.received_receipts[i].commitment,p);
+        }
+        for(let i=0;i<this.sent_receipts.length; i++)
+        {
+            this.sent_receipts[i].receipt = AES.encrypt(this.sent_receipts[i].receipt,p);
+        }
+    }
+    unlock(p)
+    {
+        this.privatekey = AES.decrypt(this.privatekey,p);
+        this.brainkey = AES.decrypt(this.brainkey,p);
+        for(let i=0;i<this.received_receipts.length;i++)
+        {
+            this.received_receipts[i].auth_privkey = AES.decrypt(this.received_receipts[i].auth_privkey,p);
+            this.received_receipts[i].blinding_factor = AES.decrypt(this.received_receipts[i].blinding_factor,p);
+            this.received_receipts[i].commitment = AES.decrypt(this.received_receipts[i].commitment,p);
+        }
+        for(let i=0;i<this.sent_receipts.length; i++)
+        {
+            this.sent_receipts[i].receipt = AES.decrypt(this.sent_receipts[i].receipt,p);
+        }
     }
 }
 export default Stealth_Account;

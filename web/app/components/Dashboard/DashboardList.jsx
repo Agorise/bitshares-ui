@@ -10,6 +10,7 @@ import BindToChainState from "../Utility/BindToChainState";
 import SettingsActions from "actions/SettingsActions";
 import Icon from "../Icon/Icon";
 import {ChainStore} from "agorise-bitsharesjs/es";
+import {ChainConfig} from "bitsharesjs-ws";
 import TotalBalanceValue from "../Utility/TotalBalanceValue";
 import AccountStore from "stores/AccountStore";
 import counterpart from "counterpart";
@@ -231,8 +232,7 @@ class DashboardList extends React.Component {
 	}
 	Receive_Receipt()
 	{
-		let rtr = this.context.router;
-		Receive_Receipt_Screen(rtr);
+		Receive_Receipt_Screen();
 	}
 	list_stealth(xaccounts)
 	{
@@ -270,9 +270,11 @@ class DashboardList extends React.Component {
 					</div>
 					</td>
 					<td style={{textAlign: "right"}}>{xacc.sent_receipts.length+xacc.received_receipts.length}</td>
-					<td style={{textAlign: "right"}}>{xacc.blind_balance}</td>
+					<td style={{textAlign: "right"}}><div id={"blind_balance_"+xacc.label}>{xacc.blind_balance}</div></td>
 					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>{xacc.blind_balance+0/*tobestealth*/} TEST</td>
+					<td style={{textAlign: "right"}}>
+					<div id={"total_balance_"+xacc.label} style={{float: "right",}}>
+					{xacc.blind_balance+0+" "+ChainConfig.address_prefix/*tobestealth*/}</div></td>
 				</tr>
 			);
 		});

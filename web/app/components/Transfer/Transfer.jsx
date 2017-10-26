@@ -81,7 +81,8 @@ class Transfer extends React.Component {
         this.nestedRef = null;
         this._updateFee();
     }
-    shouldComponentUpdate(np, ns) {
+    shouldComponentUpdate(np, ns) 
+{
         let { asset_types: current_types } = this._getAvailableAssets();
         let { asset_types: next_asset_types } = this._getAvailableAssets(ns);
 
@@ -382,7 +383,8 @@ class Transfer extends React.Component {
         }
     }
 
-    _getAvailableAssets(state = this.state) {
+    _getAvailableAssets(state = this.state)
+    {   
         const { feeStatus } = this.state;
         function hasFeePoolBalance(id) {
             return feeStatus[id] && feeStatus[id].hasPoolBalance;
@@ -417,13 +419,38 @@ class Transfer extends React.Component {
         return {asset_types, fee_asset_types};
     }
 
-    _onAccountDropdown(account) {
-        let newAccount = ChainStore.getAccount(account);
-        if (newAccount) {
+    _onAccountDropdown(account) 
+    {
+        console.log("Selected:", account);
+        if(account[0] === "@")
+        {
+            if(account[0] === "@" && this.refs.NBS_SWITCH.state.selection === 0)
+            {
+                this.refs.NBS_SWITCH.handleChange();
+            }
             this.setState({
                 from_name: account,
-                from_account: ChainStore.getAccount(account)
             });
+        }
+        else
+        {
+            let newAccount = ChainStore.getAccount(account);
+            if (newAccount) {
+                this.setState({
+                    from_name: account,
+                    from_account: ChainStore.getAccount(account)
+                });
+            }
+        }
+    }
+    _onContactDropdown(account) 
+    {
+        this.setState({
+            to_name: account,
+        });
+        if(account[0] === "@" && this.refs.NBS_SWITCH.state.selection === 0)
+        {
+            this.refs.NBS_SWITCH.handleChange();
         }
     }
 
@@ -444,15 +471,22 @@ class Transfer extends React.Component {
         // Estimate fee
         let fee = this.state.feeAmount.getAmount({real: true});
         if (from_account && from_account.get("balances") && !from_error) {
-
-            let account_balances = from_account.get("balances").toJS();
-            if (asset_types.length === 1) asset = ChainStore.getAsset(asset_types[0]);
-            if (asset_types.length > 0) {
-                let current_asset_id = asset ? asset.get("id") : asset_types[0];
-                let feeID = feeAsset ? feeAsset.get("id") : "1.3.0";
-                balance = (<span style={{borderBottom: "#A09F9F 1px dotted", cursor: "pointer"}} onClick={this._setTotal.bind(this, current_asset_id, account_balances[current_asset_id], fee, feeID)}><Translate component="span" content="transfer.available"/>: <BalanceComponent balance={account_balances[current_asset_id]}/></span>);
-            } else {
-                balance = "No funds";
+            if(from_name[0] !== "@")
+            {
+                let account_balances = from_account.get("balances").toJS();
+                if (asset_types.length === 1) asset = ChainStore.getAsset(asset_types[0]);
+                if (asset_types.length > 0) {
+                    let current_asset_id = asset ? asset.get("id") : asset_types[0];
+                    let feeID = feeAsset ? feeAsset.get("id") : "1.3.0";
+                    balance = (<span style={{borderBottom: "#A09F9F 1px dotted", cursor: "pointer"}} onClick={this._setTotal.bind(this, current_asset_id, account_balances[current_asset_id], fee, feeID)}><Translate component="span" content="transfer.available"/>: <BalanceComponent balance={account_balances[current_asset_id]}/></span>);
+                } else {
+                    balance = "No funds";
+                }
+            }
+            else
+            {
+                balance = this.state.SDB.Get("account",from_name).blind_balance;
+                console.log("TRIG"+balance);
             }
         }
 
@@ -464,7 +498,16 @@ class Transfer extends React.Component {
         let accountsList = Immutable.Set();
         accountsList = accountsList.add(from_account);
         let tabIndex = 1;
-
+        let fullacclist = AccountStore.getMyAccounts();
+        if(this.state.SDB)
+        {
+            fullacclist = Array.from(AccountStore.getState().linkedAccounts).concat(this.state.SDB.Get_Account_List());
+        }
+        let contactlist = this.state.SDB.Get_Contact_List().concat(Array.from(AccountStore.getState().linkedAccounts));
+        contactlist = contactlist.filter(function(item){
+            return AccountStore.getMyAccounts().indexOf(item) === -1;
+        });
+        contactlist = contactlist.concat(this.state.SDB.Get_Account_List());
         return (
             <div className="grid-block vertical">
             <div className="grid-block shrink vertical medium-horizontal" style={{paddingTop: "2rem"}}>
@@ -483,7 +526,7 @@ class Transfer extends React.Component {
                                 error={from_error}
                                 tabIndex={tabIndex++}
                                 onDropdownSelect={this._onAccountDropdown.bind(this)}
-                                dropDownContent={AccountStore.getMyAccounts()}
+                                dropDownContent={fullacclist}
                             />
                         </div>
                         {/*  T O  */}
@@ -496,6 +539,8 @@ class Transfer extends React.Component {
                                 account={to_name}
                                 size={60}
                                 tabIndex={tabIndex++}
+                                dropDownContent={contactlist}
+                                onDropdownSelect={this._onContactDropdown.bind(this)}
                                 contacts={this.state.SDB.contacts}
                                 accounts={this.state.SDB.accounts}
                             />
