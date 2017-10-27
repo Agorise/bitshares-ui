@@ -342,7 +342,6 @@ class Stealth_DB
         let privkey = this.check_valid_privatekey(key);
         if(!pubkey && !privkey){key = key.toLowerCase();}
         let what = What.toLowerCase();
-        console.log("Searching for" + What +" with " + key);
         let searchee = null;
         //Searching for contact
         if(what === "contact")

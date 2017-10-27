@@ -486,7 +486,6 @@ class Transfer extends React.Component {
             else
             {
                 balance = this.state.SDB.Get("account",from_name).blind_balance;
-                console.log("TRIG"+balance);
             }
         }
 
