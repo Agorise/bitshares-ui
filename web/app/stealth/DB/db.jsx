@@ -457,7 +457,7 @@ class Stealth_DB
     GetUnspentCoins(sacc_identifier)
     {
         let unspent = [];
-        let A = this.GET("account", sacc_identifier);
+        let A = this.Get("account", sacc_identifier);
         if(A === false){return A;}
         for(let i=0;i<A.received_receipts.length;i++)
         {
