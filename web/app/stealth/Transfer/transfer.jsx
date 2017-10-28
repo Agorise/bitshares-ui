@@ -57,6 +57,10 @@ class StealthID {
         }
     }
 
+    canBlindSpend() {   // (Will probably need to be more sophisticated.)
+        return (this.privkey) ? true : false;
+    }
+
     static isStealthLabel(labelstring) {
         return (labelstring[0]==="@");
     }
@@ -66,17 +70,23 @@ class StealthID {
     }
 
     /**
-     * Accepts a variety of input forms and uses them to set the BlindCoin
-     * list of a StealthID.
+     * Sets the list of BlindCoin's for a StealthID.  Input can be a
+     * single coin object or an array of coin objects.  Coin objects may
+     * be in fully-constructed "heavy" form, or the lighweight form used
+     * for database storage/retreival.
      */
     setCoins(input) {
-        this.coins = input; // TODO: check form of input and convert accordingly.
+        if (!input) {input = [];}
+        if (!Array.isArray(input)) {input = [input];}
+        input = input.map(a=>BlindCoin.fromDBObject(a)); // (will pass-thru if
+        this.coins = input;                              // already BlindCoin)
     }
 
     /**
-     * Find a credentialed ACCOUNT (Regular or Stealth) that I can
-     * spend FROM, and return as StealthID object. Label is presumed to
-     * be "marked" if a stealth label.
+     * Find a credentialed ACCOUNT (Regular or Stealth) that I can spend
+     * FROM, and return as StealthID object. Label is presumed to be
+     * "marked" if a stealth label.  If a stealth account, we also load
+     * associated BlindCoins from the StealthDB.
      */
     static findCredentialed(label, stealth_DB) {
         if (StealthID.isStealthLabel(label)) {
@@ -86,10 +96,14 @@ class StealthID {
             let namelabel = StealthID.stripStealthMarker(label);
             for(let i=0;i<accounts.length;i++) {
                 if(accounts[i].label == namelabel) {
-                    return new StealthID(
+                    let foundID = new StealthID(
                         namelabel,
                         PublicKey.fromStringOrThrow(accounts[i].publickey),
-                        PrivateKey.fromWif(accounts[i].privatekey));}
+                        PrivateKey.fromWif(accounts[i].privatekey));
+                    let coins = stealth_DB.GetUnspentCoins(foundID.label);
+                    foundID.setCoins(coins);
+                    return foundID;
+                }
             }
             throw "Could not find name in stealth accounts";
         } else {
@@ -154,11 +168,9 @@ class Stealth_Transfer
         console.log("Initializing a Stealth Transfer of " + this.amount
                     + " from " + this.from.markedlabel
                     + " to " + this.to.markedlabel
-                    + " with up to " + this.from.coins.length
-                    + " possible Coin inputs" /*, this */);
-        DEBUG && console.log("WSCAT: Suggested rpc tests follow.\n"
-                             + "WSCAT: Connect with: "
-                             + "wscat -c wss://node.testnet.bitshares.eu/");
+                    + " with up to "
+                    + (this.from.coins ? this.from.coins.length : 0)
+                    + " possible Coin inputs" /*, this*/);
     }
 
     /**
@@ -377,8 +389,15 @@ class Stealth_Transfer
             blindconf.output_meta.push(meta);
             bop.outputs.push(out);
 
-            /***/ console.log("Receipt:  ", meta.confirmation_receipt);
         } // End loop over Recipients
+
+        console.log("Tentative Receipts:  (TX not yet broadcast)");
+        for (let i = 0; i < blindconf.output_meta.length; i++) {
+            console.log("Receipt " + i + " (" + blindconf.output_meta[i].label
+                        + "): ",blindconf.output_meta[i].confirmation_receipt);
+        }
+
+        console.log ("Preparing Transaction for broadcast...");
 
         let tr = new TransactionBuilder();
         tr.add_type_operation("blind_transfer",{
@@ -412,13 +431,11 @@ class Stealth_Transfer
      * From Blind to Public:
      */
     Blind_to_Public() {
-        /**/console.log("(TEMP CODE) This will transfer the entire balance of",
-                        "the RECEIPT provided on memo line to a public account.",
-                        "Input receipt is:",this.messagetxt,
-                        "At present, this ALPHA code only handles one blind",
-                        "input and one public output.");
+
         // Get first-stage operation:
+        let feebase = 100;      // Base fee      (TODO: Need to get from chain)
         let whoto = this.to; this.to = this.from; // Gonna send to self, sorta
+        this.amount += feebase; // TEMP TODO this is hacky as hell
         let stage1 = this.Blind_to_Blind(true);   // get tx with temp acct
         this.to = whoto;  // (Not sure if needed/wanted)
         /***/ console.log("B2PUB: Stage 1 was", stage1);
@@ -454,7 +471,7 @@ class Stealth_Transfer
         });
         /***/ console.log("Built inital B2P TX:", tr);
         return WalletDb.process_transaction(tr,null,true/*true*/)
-            .then(()=>{blindconf.trx = tr; return blindconf;})
+            .then(()=>{stage1.trx = tr; return stage1;})
             .catch((err)=>{
                 return new Error("To_Stealth: WalletDb.process_transaction error: ",
                                  JSON.stringify(err));
@@ -532,7 +549,8 @@ class BlindCoin {
      * receipts.
      *
      * @arg rcpt_txt      - Receipt as base58 text
-     * @arg DB - Stealth DB
+     * @arg DB            - Stealth DB from which wif can be querried,
+     *                      or else explicit wif as string
      *
      * returns: false || new BlindCoin(...)
      *
@@ -552,7 +570,8 @@ class BlindCoin {
         let confirmation = new stealth_confirmation();
         confirmation.ReadBase58(receipt_txt);
 
-        let askingwif = DB.PrivKeyFinder(confirmation.to.toString());
+        let askingwif = (typeof DB === "string") ? DB
+            : DB.PrivKeyFinder(confirmation.to.toString());
         let whoto = new StealthID("unknown@",null,PrivateKey.fromWif(askingwif));
         let secret = whoto.privkey.get_shared_secret(
             confirmation.one_time_key);   // 512-bits for aes key/iv
@@ -694,18 +713,37 @@ class BlindCoin {
     }
 
     /**
-     * Returns a new BlindCoin object interpreted from the lightweight form
-     * used for storage/retreival.
+     * Returns a new BlindCoin object interpreted from the lightweight
+     * form used for storage/retreival. If DBObj is already BlindCoin
+     * then return unmodified.
      */
     static fromDBObject(DBObj) {
-        /***/ console.log("WhatisDBObj", DBObj);
-        return new BlindCoin(DBObj.auth_privkey,
-                             DBObj.value,
-                             DBObj.asset_id,
-                             Buffer.from(DBObj.blinding_factor, "hex"),
-                             Buffer.from(DBObj.commitment, "hex"),
-                             DBObj.spent
-                            );
+
+        let isheavy = (DBObj instanceof BlindCoin);
+        let islightweight = (typeof DBObj.commitment === "string" &&
+                             typeof DBObj.ver !== "undefined");
+
+        if (islightweight && !isheavy) {
+
+            return new BlindCoin(DBObj.auth_privkey,
+                                 DBObj.value,
+                                 DBObj.asset_id,
+                                 Buffer.from(DBObj.blinding_factor, "hex"),
+                                 Buffer.from(DBObj.commitment, "hex"),
+                                 DBObj.spent
+                                );
+
+        } else if (isheavy && !islightweight) {
+
+            return DBObj;
+
+        } else {
+
+            console.log ("Can't interpret storage object as BlindCoin:", DBObj);
+            return new Error("Uninterpretable BlindCoin representation");
+
+        }
+
     }
 
 }

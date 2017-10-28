@@ -288,7 +288,6 @@ class Transfer extends React.Component {
 
         let DB = this.state.SDB;
         let FromID = StealthID.findCredentialed(this.state.from_name, DB);
-        FromID.setCoins(BlindCoin.fromReceipts(this.state.memo,DB));
         let ToID = StealthID.findAny(this.state.to_name, DB);
         let AssetObj = this.state.asset;
         let Amount = sendAmount.getAmount();
@@ -299,10 +298,23 @@ class Transfer extends React.Component {
             // TODO: I've seen the following log message on failed broadcasts,
             // so getting here is not proof positive of success.
             /***/ console.log("Success!", r);
-            // TODO: r.consumed_commits contains list of consumed commitments.
-            // TODO: Stealth DB needs to be told to set .spent on these commits.
-            Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,
-                                ToID.markedlabel);
+            if (FromID.isblind) {
+                // Tell Stealth DB to mark commits in r.consumed_commits spent
+                console.log("Clearing spent commits", r.consumed_commits);
+                DB.ProcessSpending(FromID.label,r.consumed_commits,[]);
+            }
+            // TODO:  Handle change coin if it exists.
+            if (ToID.canBlindSpend()) { // if to self, essentially:
+                let rcpt_to = r.output_meta[0].confirmation_receipt;
+                let rcvd_coin_db = BlindCoin.fromReceipt(rcpt_to,DB).toDBObject();
+                console.log("Claiming commitment: " + rcvd_coin_db.commitment
+                            + "\nvalue: " + rcvd_coin_db.value
+                            + "; (was rcpt: " + rcpt_to.slice(0,12) + "...)");
+                DB.ProcessSpending(ToID.label,[],[rcvd_coin_db]);
+            } else if (ToID.isblind) {  // else display receipt: (unless op-41)
+                Sent_Receipt_Screen(r.output_meta[0].confirmation_receipt,
+                                    ToID.markedlabel);
+            }
             DB.Log_Sent_Receipt(FromID.markedlabel,ToID.markedlabel,
                                 r.output_meta[0].confirmation_receipt,Amount);
         })
