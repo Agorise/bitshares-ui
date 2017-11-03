@@ -23,6 +23,7 @@ import Stealth_DB from "stealth/DB/db";
 import {Stealth_Transfer} from "stealth/Transfer/transfer";
 import {BlindCoin,StealthID} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
+import {Local_Backup} from "stealth/Visual_Components/Backup_Screens";
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -244,12 +245,6 @@ class Transfer extends React.Component {
             TransactionConfirmStore.reset();
         }
     }
-    MYTEST()
-    {
-        let receipt = "BASLDAWIJDOAWIHGOIHAWOGOIAWHGFHAWOGOHAWGHIAWHGOIWHAGWTFWAIPJFIAWJFPIOAWJFPOAWJFPOAWJFPJAWFPOAWJPFOJAWPOFJAWPOFJAWPOFJAPOWJFPOAWJFPOAWJF";
-        let to = "Dummy";
-        Sent_Receipt_Screen(receipt,to);
-    }
     onPropose(propose, e) {
         e.preventDefault();
         this.setState({ propose, propose_account: null });
@@ -465,7 +460,10 @@ class Transfer extends React.Component {
             this.refs.NBS_SWITCH.handleChange();
         }
     }
-
+    TEST(a)
+    {
+        Local_Backup(a);
+    }
     render() {
         let from_error = null;
         let {propose, from_account, to_account, asset, asset_id, propose_account, feeAmount,
@@ -515,9 +513,6 @@ class Transfer extends React.Component {
             fullacclist = Array.from(AccountStore.getState().linkedAccounts).concat(this.state.SDB.Get_Account_List());
         }
         let contactlist = this.state.SDB.Get_Contact_List().concat(Array.from(AccountStore.getState().linkedAccounts));
-        contactlist = contactlist.filter(function(item){
-            return AccountStore.getMyAccounts().indexOf(item) === -1;
-        });
         contactlist = contactlist.concat(this.state.SDB.Get_Account_List());
         return (
             <div className="grid-block vertical">

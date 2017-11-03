@@ -3,7 +3,6 @@ import WalletUnlockActions from "actions/WalletUnlockActions";
 import SettingsActions from "actions/SettingsActions";
 import WalletDb from "stores/WalletDb";
 import ls from "common/localStorage";
-
 const STORAGE_KEY = "__graphene__";
 let ss = new ls(STORAGE_KEY);
 

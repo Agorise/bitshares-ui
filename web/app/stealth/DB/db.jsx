@@ -4,6 +4,7 @@ import Blind_Receipt from "./blind_receipt";
 import Dexie from "dexie";
 import AccountStore from "stores/AccountStore";
 import {ChainConfig} from "bitsharesjs-ws";
+import CJS from "crypto-js";//remove from here.
 /* Standards:
  * Capital letters represent Objects.
  * Lowercase letters represent strings.
@@ -30,28 +31,39 @@ class Stealth_DB
         this.IDB.version(1).stores({
             stealth_accounts: "id++,label,brain_key,public_key,private_key,associated_account,sent_receipts, received_receipts, blind_balance",
             stealth_contacts: "id++,label,public_key",
-            sent_pbreceipts: "id++,from,to,receipt,value"
+            sent_pbreceipts: "id++,from,to,receipt,value",
+            settings: "id++,name,setting"
         });
+        this.cjs = CJS;
     }
     Load_Accounts()
     {
+        this.accounts = [];
         let Accounts = this.IDB.stealth_accounts;
         return Accounts.each(a=>{
-            let SACC = new Stealth_Account();
-            SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts,a.blind_balance);
-            this.accounts.push(SACC);
+            if(!this.get_account(a.label))
+            {
+                let SACC = new Stealth_Account();
+                SACC.load_account(a.label, a.brain_key, a.public_key, a.private_key, a.associated_account,a.sent_receipts,a.received_receipts,a.blind_balance);
+                this.accounts.push(SACC);
+            }
         });
     }
     Load_Contacts()
     {
+        this.contacts = [];
         let Contacts = this.IDB.stealth_contacts;
         return Contacts.each(c=>{
-            let SCTC = new Stealth_Contact(c.label,c.public_key);
-            this.contacts.push(SCTC);
+            if(!this.get_contact(c.label))
+            {
+                let SCTC = new Stealth_Contact(c.label,c.public_key);
+                this.contacts.push(SCTC);
+            }
         });
     }
     Load_Sent_PBReceipts()
     {
+        this.sent_pbreceipts = [];
         let Receipts = this.IDB.sent_pbreceipts;
         return Receipts.each(r=>{
             let RCPT = [r.from, new Blind_Receipt(r.to,r.receipt,r.value)];
@@ -63,7 +75,6 @@ class Stealth_DB
     {
         for(var i=0;i<this.accounts.length;i++)
         {
-            console.log("SEARCHING: "+this.accounts[i].label);
             if(this.accounts[i].label===a)
             {
                 return this.accounts[i];
@@ -124,9 +135,9 @@ class Stealth_DB
     {
         if(A !== false && A!==null)
         {
-            this.IDB.stealth_accounts.where("label").equals(A.label).modify({[what]:to});
-            this.Load_Accounts();
-            return true;
+            this.IDB.stealth_accounts.where("label").equals(A.label).modify({[what]:to}).then(()=>{
+                this.Load_Accounts();
+            });
         }
         return false;
     }
@@ -136,6 +147,7 @@ class Stealth_DB
         if(X !== false)
         {
             this.IDB.stealth_accounts.where("label").equals(c).delete();
+            this.Load_Accounts();
             return true;
         }
         return false;
@@ -147,6 +159,7 @@ class Stealth_DB
         if(X !== false)
         {
             this.IDB.stealth_contacts.where("label").equals(c).delete();
+            this.Load_Contacts();
             return true;
         }
         return false;
@@ -189,31 +202,55 @@ class Stealth_DB
     }
     update_account(A)
     {
-        this.modify_account(A, label, A.label);
-        this.modify_account(A, public_key, A.publickey);
-        this.modify_account(A, private_key, A.privatekey);
-        this.modify_account(A, brain_key, A.brainkey);
-        this.modify_account(A, blind_balance, A.blind_balance);
-        this.modify_account(A, sent_receipts, A.sent_receipts);
-        this.modify_account(A, received_receipts, A.received_receipts);
+        this.modify_account(A, "label", A.label);
+        this.modify_account(A, "public_key", A.publickey);
+        this.modify_account(A, "private_key", A.privatekey);
+        this.modify_account(A, "brain_key", A.brainkey);
+        this.modify_account(A, "blind_balance", A.blind_balance);
+        this.modify_account(A, "sent_receipts", A.sent_receipts);
+        this.modify_account(A, "received_receipts", A.received_receipts);
+    }
+    Is_Locked()
+    {
+        if(this.accounts.length > 0)
+        {
+            if(this.accounts[0].isLocked()){return true;}
+            else{return false;}
+        }
     }
     Lock()
     {
-        for(let i=0;i<this.accounts.length;i++)
-        {
-            this.accounts[i].lock(this.tempy);
-            this.update_account(this.accounts[i]);
-        }
-        this.tempy = null;
+        this.tempy = this.IDB.settings.where("name").equals("pkey").each(p =>{this.tempy = p.setting;}).then(()=>{
+            if(this.tempy === undefined){return;}
+            if(!this.Is_Locked())
+            {
+                length = this.accounts.length;
+                for(let i = 0; i < length ;i++)
+                {
+                    this.accounts[i].lock(this.tempy);
+                }
+                for(let i=0;i<length;i++){this.update_account(this.accounts[i]);}
+                this.tempy = null;
+            }
+            this.IDB.settings.where("name").equals("pkey").delete();
+        });
     }
     Unlock(password)
     {
-        this.tempy = password;
-        for(let i=0;i<this.accounts.length;i++)
+        this.IDB.settings.where("name").equals("pkey").delete();
+        this.tempy = CJS.HmacSHA3(password,password).toString();
+
+        if(this.Is_Locked())
         {
-            this.accounts[i].unlock(this.tempy);
-            this.update_account(this.accounts[i]);
+            for(let i=0;i<this.accounts.length;i++)
+            {
+                this.accounts[i].unlock(this.tempy);
+                this.update_account(this.accounts[i]);
+            }
         }
+        let tempty = this.tempy;
+        this.IDB.settings.put({name: "pkey", setting: tempty});
+        this.tempy = null;
     }
     check_existing_receipts(R)
     {
@@ -404,9 +441,11 @@ class Stealth_DB
         let A = null; let Apublic = false;
         let C = null; let Cpublic = false;
         if(this.Is_Public(a)){Apublic = true; A=a;}else{A = this.get_account(a);}
-        if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T"))
-        {if(this.Is_Public(c)){Cpublic = true;C=c;}else{C = this.get_contact(c);}}else{C = c;}
-        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); this.Update_Blind_Balance(A);}//Public To Stealth
+        if((c[0] !== "B" && c[1] !== "T" && c[2] !== "S") || (c[0] !== "T" && C[1] !== "E" && c[2] !== "S" && c[3] !== "T")){
+            if(this.Is_Public(c)){Cpublic = true;C=c;}
+            else{C = this.get_contact(c);if(C === false){ C = this.get_account(c);if(C === false){console.log("Error, recipient doesn't exist!");return;}}}}
+        else{C = c;}
+        if(Apublic && !Cpublic){this.create_sent_pbreceipt(a,new Blind_Receipt(C,r,v)); this.Update_Blind_Balance(C);}//Public To Stealth
         if(Apublic && Cpublic){A.send_receipt(new Blind_Receipt(C,r,v)); this.modify_account(A,"sent_receipts",A.sent_receipts); this.Update_Blind_Balance(A);} //Stealth To Stealth
     }
     /* Stash(Receipt)

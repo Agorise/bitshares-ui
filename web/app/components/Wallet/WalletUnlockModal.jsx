@@ -116,7 +116,7 @@ class WalletUnlockModal extends React.Component {
         } else {
             let SDB = new Stealth_DB();
             SDB.Initialize().then(()=>{
-                //SDB.Unlock(password); too alpha atm need to test further.
+                SDB.Unlock(password);
             });
             if (!passwordLogin) {
                 this.refs.password_input.clear();

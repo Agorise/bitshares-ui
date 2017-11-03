@@ -1,5 +1,5 @@
 import alt from "alt-instance";
-
+import Stealth_DB from "stealth/DB/db";
 class WalletUnlockActions {
 
     /** If you get resolved then the wallet is or was just unlocked.  If you get
@@ -12,7 +12,6 @@ class WalletUnlockActions {
             return new Promise( (resolve, reject) => {
                 dispatch({resolve, reject});
             }).then( was_unlocked => {
-                //DEBUG  console.log('... WalletUnlockStore\tmodal unlock')
                 if(was_unlocked) WrappedWalletUnlockActions.change();
             });
         };
@@ -24,7 +23,17 @@ class WalletUnlockActions {
             return new Promise( resolve => {
                 dispatch({resolve});
             }).then( was_unlocked => {
-                if(was_unlocked) WrappedWalletUnlockActions.change();
+                if(was_unlocked)
+                {
+                    WrappedWalletUnlockActions.change();
+                }
+                else
+                {
+                    let SDB = new Stealth_DB();
+                    SDB.Initialize().then(()=>{
+                        SDB.Lock();
+                    });
+                }
             });
         };
     }

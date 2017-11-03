@@ -1,6 +1,7 @@
 import React from "react";
 import { ContextMenu, Item, Separator, IconFont } from "react-contexify";
 import Stealth_DB from "stealth/DB/db";
+import {Local_Backup} from "stealth/Visual_Components/Backup_Screens";
 import copy from "copy-to-clipboard";
 function onClick(targetNode, ref, data) {
     let x = new Stealth_DB();
@@ -9,7 +10,6 @@ function onClick(targetNode, ref, data) {
         {
             case "Public":
                 {
-                    console.log("You want me to get the public key of "+targetNode.innerText+"IT IS: "+x.get_account(targetNode.innerText).publickey);
                     copy(x.get_account(targetNode.innerText).publickey, {
                         debug: false,
                         message: "This is your public key. Send it to whomever you wish to transfer you funds.",
@@ -18,11 +18,15 @@ function onClick(targetNode, ref, data) {
                 }
             case "Private":
                 {
-                    console.log("You want me to get the private key of "+targetNode.innerText);
                     copy(x.get_account(targetNode.innerText).privatekey, {
                         debug: false,
                         message: "This is your private key, never share it with anyone, it's the one thing that gives you access to your funds. Use it in case you wish to import it elsewhere.",
                     });
+                    break;
+                }
+            case "Backup":
+                {
+                    Local_Backup(targetNode.innerText);
                     break;
                 }
             case "Delete":
@@ -52,6 +56,9 @@ const Menu_Stealth_DashBoard = () => (
         </Item>
         <Item onClick={onClick} data ="Private">
             Get Private Key
+        </Item>
+        <Item onClick={onClick} data ="Backup">
+            Backup
         </Item>
         <Item onClick={onClick} data="Delete">
             Delete Account

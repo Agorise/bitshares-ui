@@ -182,8 +182,6 @@ class Dashboard extends React.Component {
             linkedAccounts = linkedAccounts.add(passwordAccount);this.props
         }
         let names = linkedAccounts.toArray().sort();
-        console.log("Linkedaccs"+linkedAccounts);
-        console.log("NAMES:" + names);
         if (passwordAccount && names.indexOf(passwordAccount) === -1) names.push(passwordAccount);
         let ignored = myIgnoredAccounts.toArray().sort();
 

@@ -1,6 +1,6 @@
 import {PrivateKey, key} from "agorise-bitsharesjs/es";
 import Blind_Receipt from "./blind_receipt";
-import AES from "crypto-js";
+import CJS from "crypto-js";
 class Stealth_Account
 {
     constructor()
@@ -103,34 +103,52 @@ class Stealth_Account
         this.update_blind_balance();
         return true;
     }
+    isLocked()
+    {
+        if(this.privatekey[0] !== null)
+        {
+            if(this.privatekey.length < 70)
+            {
+                console.log("is not locked!");
+                return false;
+            }
+            if(this.privatekey.length > 70)
+            {
+                console.log("is locked!");
+                return true;
+            }
+        }
+    }
     lock(p)
     {
-        this.privatekey = AES.encrypt(this.privatekey,p);
-        this.brainkey = AES.encrypt(this.brainkey,p);
+        if(this.isLocked()){return;}
+        this.privatekey = CJS.AES.encrypt(this.privatekey,p).toString();
+        this.brainkey = CJS.AES.encrypt(this.brainkey,p).toString();
         for(let i=0;i<this.received_receipts.length;i++)
         {
-            this.received_receipts[i].auth_privkey = AES.encrypt(this.received_receipts[i].auth_privkey,p);
-            this.received_receipts[i].blinding_factor = AES.encrypt(this.received_receipts[i].blinding_factor,p);
-            this.received_receipts[i].commitment = AES.encrypt(this.received_receipts[i].commitment,p);
+            this.received_receipts[i].auth_privkey = CJS.AES.encrypt(this.received_receipts[i].auth_privkey,p).toString();
+            this.received_receipts[i].blinding_factor = CJS.AES.encrypt(this.received_receipts[i].blinding_factor,p).toString();
+            this.received_receipts[i].commitment = CJS.AES.encrypt(this.received_receipts[i].commitment,p).toString();
         }
         for(let i=0;i<this.sent_receipts.length; i++)
         {
-            this.sent_receipts[i].receipt = AES.encrypt(this.sent_receipts[i].receipt,p);
+            this.sent_receipts[i].receipt = CJS.AES.encrypt(this.sent_receipts[i].receipt,p).toString();
         }
     }
     unlock(p)
     {
-        this.privatekey = AES.decrypt(this.privatekey,p);
-        this.brainkey = AES.decrypt(this.brainkey,p);
+        if(!this.isLocked()){return;}
+        this.privatekey = CJS.AES.decrypt(this.privatekey,p).toString(CJS.enc.Utf8);
+        this.brainkey = CJS.AES.decrypt(this.brainkey,p).toString(CJS.enc.Utf8);
         for(let i=0;i<this.received_receipts.length;i++)
         {
-            this.received_receipts[i].auth_privkey = AES.decrypt(this.received_receipts[i].auth_privkey,p);
-            this.received_receipts[i].blinding_factor = AES.decrypt(this.received_receipts[i].blinding_factor,p);
-            this.received_receipts[i].commitment = AES.decrypt(this.received_receipts[i].commitment,p);
+            this.received_receipts[i].auth_privkey = CJS.AES.decrypt(this.received_receipts[i].auth_privkey,p).toString(CJS.enc.Utf8);
+            this.received_receipts[i].blinding_factor = CJS.AES.decrypt(this.received_receipts[i].blinding_factor,p).toString(CJS.enc.Utf8);
+            this.received_receipts[i].commitment = CJS.AES.decrypt(this.received_receipts[i].commitment,p).toString(CJS.enc.Utf8);
         }
         for(let i=0;i<this.sent_receipts.length; i++)
         {
-            this.sent_receipts[i].receipt = AES.decrypt(this.sent_receipts[i].receipt,p);
+            this.sent_receipts[i].receipt = CJS.AES.decrypt(this.sent_receipts[i].receipt,p).toString(CJS.enc.Utf8);
         }
     }
 }

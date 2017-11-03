@@ -237,7 +237,7 @@ class DashboardList extends React.Component {
 	list_stealth(xaccounts)
 	{
 		const {dashboardFilter} = this.state;
-		if(xaccounts === undefined)
+		if(xaccounts.length<1)
 		{
 			return(
 				<tr id={"stealthacc_"}>
