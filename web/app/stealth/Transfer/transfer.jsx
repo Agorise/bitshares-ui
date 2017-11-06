@@ -6,6 +6,7 @@ import { Asset } from "common/MarketClasses";
 import Stealth_Account from "stealth/DB/account";
 import Stealth_Contact from "stealth/DB/contact";
 import Stealth_DB from "stealth/DB/db";
+import {Apis} from "bitsharesjs-ws";
 import {ChainStore, TransactionBuilder} from "agorise-bitsharesjs/es";
 import {PrivateKey, PublicKey, /*Aes,*/ key, hash} from "agorise-bitsharesjs/es/ecc";
 import {blind_output,blind_memo,blind_input,blind_output_meta,
@@ -171,6 +172,9 @@ class Stealth_Transfer
                     + " with up to "
                     + (this.from.coins ? this.from.coins.length : 0)
                     + " possible Coin inputs" /*, this*/);
+
+        this.fees = new BlindFees;  // An interogator to find out required fees
+
     }
 
     /**
@@ -310,28 +314,44 @@ class Stealth_Transfer
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
 
-        let feebase = 100;      // Base fee      (TODO: Need to get from chain)
-        let feeper = 500000;    // Per-input fee (TODO: Need to get from chain)
+        let feebase = this.fees.blindfees[0];
+        let feeperinput = this.fees.blindfees[1];
+        let feeperoutput = this.fees.blindfees[2];
 
-        let CoinsIn = BlindCoin.getCoinsSatisfyingAmount(
-                        this.from.coins, (this.amount + feebase), feeper);
-        /***/ console.log("Selected " + CoinsIn.length
-                          + " Coins as input to Blind2Blind transaction.");
-        assert(CoinsIn.length > 0, "Insufficient spendable coins");
+        let CoinsIn = BlindCoin.getCoinsSatisfyingAmount(this.from.coins,
+                          (this.amount + feebase), feeperinput, feeperoutput);
+
+        /***/ console.log("Selected " + CoinsIn.length +
+                          " Coins as input to Blind2Blind transaction."
+                         );
+
+        let totalfee = feebase + feeperoutput + feeperinput * CoinsIn.length;
+        let changeamount = BlindCoin.valueSum(CoinsIn) - this.amount - totalfee;
+        let changeoutputneeded = false;
+        if (changeamount > 0) {
+            totalfee += feeperoutput;
+            changeamount -= feeperoutput;
+            changeoutputneeded = true;
+        }
+
+        assert((CoinsIn.length > 0 && changeamount >= 0),
+               "Insufficient spendable coins: " + (this.amount + totalfee) +
+               " needed; " + BlindCoin.valueSum(this.from.coins) +
+               " available; " + BlindCoin.valueSum(CoinsIn) + " selected for use."
+              );
+
         blindconf.consumed_commits.push(...CoinsIn.map(a=>a.commitmentHex()));
 
-        let totalfee = feebase + feeper * CoinsIn.length;
         let feeamountasset
             = {"amount":totalfee, "asset_id":this.asset.get("id")};
         bop.fee = feeamountasset;
-        let changeamount = BlindCoin.valueSum(CoinsIn) - this.amount - totalfee;
 
         /***/ console.log ("Change amount: " + changeamount);
 
         let Recipients = [this.to];
         Recipients[0].amountdue
             = {"amount":this.amount, "asset_id":this.asset.get("id")};
-        if (changeamount > 0) {
+        if (changeoutputneeded) {
             Recipients.push(this.from); // Change recipient is sender
             Recipients[1].amountdue = {"amount":changeamount,
                                        "asset_id":this.asset.get("id")};
@@ -433,7 +453,7 @@ class Stealth_Transfer
     Blind_to_Public() {
 
         // Get first-stage operation:
-        let feebase = 100;      // Base fee      (TODO: Need to get from chain)
+        let feebase = this.fees.unblind[0];       // Base fee for unblind op
         let whoto = this.to; this.to = this.from; // Gonna send to self, sorta
         this.amount += feebase; // TEMP TODO this is hacky as hell
         let stage1 = this.Blind_to_Blind(true);   // get tx with temp acct
@@ -442,7 +462,7 @@ class Stealth_Transfer
 
         let bop = new transfer_from_blind_op;
 
-        let feeamount = 100;            // TEMP need to get from chain
+        let feeamount = feebase;            // TEMP need to get from chain
         let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};
         bop.fee = feeamountasset;
 
@@ -481,6 +501,39 @@ class Stealth_Transfer
 
 }
 
+
+/**
+ * This is temporary convenience to centralize the determination of fees
+ * for blinded TXs.  There may be an existing mechanism that is better.
+ *
+ * BAD CODE in here -- we are hard-coding the fees. These need to be
+ * queried from the blockchain before production release. (Especially
+ * since fees can differ for lifetime members. Hard-coding obviously
+ * won't work.)
+ *
+ * TODO: work out how to query blockchain for fees.  Shouldn't be
+ * difficult.
+ */
+class BlindFees {
+
+    constructor() {
+
+        // This works on the official public testnet:
+        this.blindfees = [100, 500000, 0];  // Base, per-input, per-output
+        this.unblind = [100];               // Cost to unblind a commitment
+
+        let chainid = Apis.instance().chain_id.slice(0,8);
+
+        if (chainid === "4018d784") {
+            /***/ console.log("Using blind fee structure for Main Net 4018d784.");
+            // TODO: Still need to get thse fees *properly* (and also check
+            // for lifetime member status which reduces fees.)
+            this.blindfees = [500000, 0, 500000]; // Base, per-input, per-output
+            this.unblind = [254933];           // Cost to unblind a commitment
+        }
+
+    }
+}
 
 /**
  * A "blind coin" is the information needed to spend a particular blind
@@ -629,8 +682,8 @@ class BlindCoin {
 
     /**
      * Determines a minimum subset of @coins totaling @amount considering a
-     * cost of @feeper per each coin used. Returns the subset or [] if total
-     * cannot be met.
+     * cost of @feeperinput per each coin used. Returns the subset or [] if
+     * total cannot be met.
      *
      * By default does NOT check the 'spent' member of the coin (assumes
      * list has already been properly filtered/verified) but can set
@@ -641,30 +694,57 @@ class BlindCoin {
      * compatible asset-ID, and assumes amounts are in core asset.  Will
      * break if used for other assets. TODO
      */
-    static getCoinsSatisfyingAmount(coins, amount, feeper,
+    static getCoinsSatisfyingAmount(coins, amount, feeperinput, feeperoutput,
                                     flags = {onlyunspent:false,
                                              spenddust:false}) {
 
-        let tally = Long.fromInt(0);
-        let fee = 0;
-        let included = [];
+        let tally = Long.fromInt(0);    // Coin tally
+        let fee = feeperoutput;         // (There will be at least one output)
+        let included = [];              // Coin list
+        let extrafee = 0;               // Zero or feeperoutput depending on
+                                        // if there's change left over
 
         // TODO (maybe) sort coins so that biggest checked first, this will
         // make "minimum" subset. (Otherwise, it's just a subset.)
 
+        // For now, if feeperinput==0, we return all spendable coins, even if
+        // a smaller set can satisfy amount.  Since in this case there is no
+        // marginal cost to adding inputs, a greater input set has the
+        // following advantages: (1) consolidating inputs lessens Chain load,
+        // since it reduces the number of commitment objects a p2p node needs
+        // to keep in RAM, and (2) a greater input set increases the max
+        // possible value of the TX, and therefore increases the unknowability
+        // of the output amounts, in the event that the input commitments are
+        // knowable (e.g. if they were recently blinded or if somebody leaked
+        // a blinding factor).
+        let useall = !(feeperinput > 0);
+
         for (let i = 0; i < coins.length; i++) {
             let canspend = !(coins.onlyunspent && coins[i].spent);
-            let shouldspend = (coins[i].value > feeper) || flags.spenddust;
+            let shouldspend = (coins[i].value > feeperinput) || flags.spenddust;
             if (canspend && shouldspend) {
                 tally = tally.add(coins[i].value);
-                fee += feeper;
+                fee += feeperinput;
                 included.push(coins[i]);
             }
-            if (tally >= amount + fee) break;
+            extrafee = (tally <= amount + fee) ? 0 : feeperoutput;
+            if (!useall && (tally >= amount + fee + extrafee)) break;
 
         }
-        return (tally >= amount + fee) ? included : [];
 
+        let change = tally - (amount + fee);
+        if (change > 0 && change < extrafee) {
+            console.log("Fee for change output exceeds remaining balance. " +
+                        "Try reducing transaction amount, or, to use your " +
+                        "entire balance, add " + change + " satoshi units to " +
+                        "the transaction amount."
+                       );
+        }
+
+        return (tally >= amount + fee + extrafee) ? included : [];
+        // Note: In the case of equality when extrafee!=0, a commitment to
+        // zero will be required as a change coin. (C.f. if we have equality
+        // with extrafee==0, then no change coin is required.)
     }
 
     /**
