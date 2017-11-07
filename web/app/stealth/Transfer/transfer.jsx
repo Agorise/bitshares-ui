@@ -532,6 +532,16 @@ class BlindFees {
             this.unblind = [254933];           // Cost to unblind a commitment
         }
 
+        if (chainid === "9cf6f255") {
+            /***/ console.log("Using blind fee structure for " +
+                              "Agorise pre-alpha test net 9cf6f255.");
+            // TODO: Still need to get thse fees *properly* (and also check
+            // for lifetime member status which reduces fees.)
+            this.blindfees = [500000, 0, 500000]; // Base, per-input, per-output
+            this.unblind = [500000];           // Cost to unblind a commitment
+        }
+
+
     }
 }
 
