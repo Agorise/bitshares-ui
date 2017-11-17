@@ -5,6 +5,7 @@ import Dexie from "dexie";
 import AccountStore from "stores/AccountStore";
 import {ChainConfig} from "bitsharesjs-ws";
 import CJS from "crypto-js";//remove from here.
+import {bin2hex,hex2str} from "stealth/utility";
 /* Standards:
  * Capital letters represent Objects.
  * Lowercase letters represent strings.
@@ -580,6 +581,59 @@ class Stealth_DB
         result.push(accs);
         result.push(ctcs);
         return result;
+    }
+    Import_Account(backup)
+    {
+        if(backup === null){console.log("Null input passed to Import_DB!");}
+        let o = backup;
+        let A = new Stealth_Account();
+        A.load_account(o.label, o.brainkey,o.publickey,o.privatekey,o.account,o.sent_receipts,o.received_receipts,o.balance);
+        if(!this.get_account(A.label))
+        {
+            this.create_account(A);
+        }
+    }
+    Import_Contact(backup)
+    {
+        if(backup === null){console.log("Null input passed to Import_DB!");}
+        let o = null;
+        if(backup.constructor === Uint8Array){o = JSON.parse(hex2str((bin2hex(backup))));}
+        else{ o = backup; }
+        let C = new Stealth_Contact();
+        C.set_contact(o.label, o.public_key);
+        this.create_contact(C);
+    }
+    Import_DB(backup)
+    {
+        if(backup === null){console.log("Null input passed to Import_DB!");}
+        if(backup.constructor !== Uint8Array){console.log("Expecting Uint8Array, you inputted"+backup.constructor+"instead!");return false;}
+        let O = backup;
+        let ACCS = O[0];
+        let CTCS = O[1];
+        for(let i=0;i<O[0].length;i++)
+        {
+            Import_Account(ACCS[i]);
+        }
+        for(let i=0;i<O[1].length;i++)
+        {
+            Import_Contact(CTCS[i]);
+        }
+        return true;
+    }
+    Check_Import_Type(I_OBJ)
+    {
+        if(I_OBJ === null){return false;}
+        if(I_OBJ.privatekey !== undefined){return "account";} //Account 
+        if(I_OBJ.label !== undefined && I_OBJ.privatekey !== undefined){return "contact";} //Contact
+        if(I_OBJ[0] !== null){return "full_backup";} //Full Backup
+    };
+    Import(backup)
+    {
+        let x = JSON.parse(hex2str((bin2hex(backup))));
+        let type = Check_Import_Type(x);
+        if(type === "account"){Import_Account(x);}
+        if(type === "contact"){Import_Contact(x);}
+        if(type === "full_backup"){Import_DB(x);}
     }
 }
 export default Stealth_DB;

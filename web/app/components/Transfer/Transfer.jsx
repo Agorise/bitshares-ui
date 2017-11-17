@@ -23,7 +23,7 @@ import Stealth_DB from "stealth/DB/db";
 import {Stealth_Transfer} from "stealth/Transfer/transfer";
 import {BlindCoin,StealthID} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
-import {Local_Backup} from "stealth/Visual_Components/Backup_Screens";
+import {Local_Import} from "stealth/Visual_Components/Backup_Screens";
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -389,7 +389,13 @@ class Transfer extends React.Component {
             this.setState({amount: balance.getAmount({real: true})}, this._checkBalance);
         }
     }
-
+    CopyStealthAmmount(value)
+    {
+        //Estimate fee
+        fee = 0;
+        //
+        this.setState({amount: value-fee});
+    }
     _getAvailableAssets(state = this.state)
     {   
         const { feeStatus } = this.state;
@@ -460,9 +466,9 @@ class Transfer extends React.Component {
             this.refs.NBS_SWITCH.handleChange();
         }
     }
-    TEST(a)
+    TEST()
     {
-        Local_Backup(a);
+        Local_Import();
     }
     render() {
         let from_error = null;
@@ -495,7 +501,14 @@ class Transfer extends React.Component {
             }
             else
             {
-                balance = this.state.SDB.Get("account",from_name).blind_balance;
+                if(this.state.SDB.Get("account",from_name).blind_balance === 0)
+                {                
+                    balance = "No Funds!";
+                }
+                else
+                {
+                    balance = (<span style={{borderBottom: "#A09F9F 1px dotted", cursor: "pointer"}} onClick={this.CopyStealthAmmount.bind(this, this.state.SDB.Get("account",from_name).blind_balance)}>{this.state.SDB.Get("account",from_name).blind_balance+" "+asset.get("symbol")}</span>);
+                }
             }
         }
 

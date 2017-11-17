@@ -95,6 +95,16 @@ class Stealth_Account
         result /= 100000;
         this.blind_balance = result;
     }
+    get_funds()
+    {
+        let result = [];
+        for(let i=0;i<this.received_receipts.length;i++)
+        {
+            let tmp = [this.received_receipts[i].asset_id,this.received_receipts[i].value];
+            result.push(tmp);
+        }
+        return result;
+    }
     receive_receipt(R)
     {
         if(R === undefined || R === null){return false;}

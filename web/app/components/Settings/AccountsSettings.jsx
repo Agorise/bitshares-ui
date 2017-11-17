@@ -5,9 +5,24 @@ import AccountActions from "actions/AccountActions";
 import { connect } from "alt-react";
 import utils from "common/utils";
 import Translate from "react-translate-component";
+import Stealth_DB from "stealth/DB/db";
 
 class AccountsSettings extends React.Component {
+    constructor()
+    {
+        super();
+        this.state = {
+            SDB: new Stealth_DB,
+            Loaded: false
+        };
+        this.state.SDB.Initialize().then(()=>{this.state.SDB.initialized = true;});
+    }
     shouldComponentUpdate(nextProps) {
+        if(!this.state.Loaded)
+        {
+            this.state.Loaded=true;
+            return true;
+        }
         return (
             !utils.are_equal_shallow(nextProps.myAccounts, this.props.myAccounts) ||
             nextProps.ignoredAccounts !== this.props.ignoredAccounts
@@ -23,17 +38,43 @@ class AccountsSettings extends React.Component {
         e.preventDefault();
         AccountActions.unlinkAccount(account);
     }
-
+    Stealth_Accounts()
+    {
+        if(this.state.SDB.initialized)
+        {
+            if(this.state.SDB.Get_Account_List().length > 0)
+            {
+                return (
+                <div>
+                    <h3>Stealth Accounts</h3>
+                    <span className="bottom-border">Your Stealth account list.</span>
+                    <table className="table">
+                    <tbody>
+                    {this.state.SDB.Get_Account_List().map(account=>{
+                        return(
+                            <tr key={account}>
+                            <td>{account}</td>
+                            <td>View_Keys</td>
+                            </tr>
+                        );
+                    })}
+                    </tbody>
+                    </table>
+                </div>);
+            }
+        }
+    }
     render() {
         let {myAccounts, ignoredAccounts} = this.props;
 
         let accounts = ignoredAccounts.toArray().concat(myAccounts).sort();
-
+        let Stealth_Accounts = this.Stealth_Accounts();
         if (!accounts.length) {
             return <div><Translate content="settings.no_accounts" /></div>;
         }
 
         return (
+            <div>
             <table className="table">
                 <tbody>
                     {accounts.map(account => {
@@ -59,6 +100,8 @@ class AccountsSettings extends React.Component {
                     })}
                 </tbody>
             </table>
+            {Stealth_Accounts}
+            </div>
         );
     }
 }

@@ -290,10 +290,10 @@ class DashboardList extends React.Component {
 					<td>
 					No contacts yet!
 					</td>
-					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0 TEST</td>
+					<td style={{textAlign: "right"}}></td>
+					<td style={{textAlign: "right"}}></td>
+					<td style={{textAlign: "right"}}></td>
+					<td style={{textAlign: "right"}}></td>
 				</tr>
 			);
 		}
@@ -318,7 +318,7 @@ class DashboardList extends React.Component {
 					<td style={{textAlign: "right"}}>0</td>
 					<td style={{textAlign: "right"}}>0</td>
 					<td style={{textAlign: "right"}}>0</td>
-					<td style={{textAlign: "right"}}>0 bts</td>
+					<td style={{textAlign: "right"}}>0 {ChainConfig.address_prefix}</td>
 				</tr>
 			);
 		});
