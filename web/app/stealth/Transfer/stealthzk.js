@@ -345,4 +345,5 @@ class RangeProof {
 
 }
 
+export default StealthZK;
 export {StealthZK, RangeProof};
