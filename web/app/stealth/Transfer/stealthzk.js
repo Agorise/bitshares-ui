@@ -97,7 +97,6 @@ class StealthZK {
         verbose && console.log("Accumulator: " + accumulator.toHex(32));
         accumulator = accumulator.mod(n);
         verbose && console.log("Accum mod n: " + accumulator.toHex(32));
-        /***/ console.log(accumulator.toHex(32));
         return accumulator.toBuffer(32);
 
     }
@@ -191,6 +190,12 @@ class RangeProof {
         let RP = new RangeProof();
 
         RP.SetValue(value);
+
+        /***/ console.log("Constructing range proof of " + RP.value +
+                          " revealing " + RP.min_value +
+                          " minimum amount and hiding " + RP.mantissabits +
+                          " bits of precision.");
+
         RP.ComputeRadix4Arrays();   // Gets us this.secidx and this.commitvals
         RP.GenRand(nonce, blind);   // Computes blinds, nonces, and fake signatures
         //RP.EmbedMessage("");
@@ -263,22 +268,6 @@ class RangeProof {
 
     }
 
-    BuildCommitsAndPubs() {
-
-        this.ringcommits = [];
-
-        /***/ console.log("Start commits...");
-        for (let i = 0; i < this.nrings; i++) {
-            let unitval = 4**i * this.scale;
-            let commitval = unitval * this.secidx[i];
-            let commit = StealthZK.BlindCommit(this.blinds[i], commitval);
-            // Ugh slow...
-            this.ringcommits.push(commit);
-        }
-        /***/ console.log("End commits...");
-
-    }
-
     /**
      *  Generates "random" values for use as blinding factors for the ring
      *  commits and for the forged signatures.  Random values are determined
@@ -298,6 +287,7 @@ class RangeProof {
 
         this.blinds = [];
         this.sigs = [];
+        this.knonces = [];
         let blind_accum = StealthZK.BlindSum([],[]);  // A zero sum
 
         for (let i = 0; i < this.nrings; i++) {
@@ -309,7 +299,51 @@ class RangeProof {
                 let tmp = StealthZK.BlindSum([blindtarget],[blind_accum]);
                 this.blinds.push(tmp);
             }
+            let sigset = [];
+            let ringsize = ((i == this.nrings-1) && this.oddbits) ? 2 : 4;
+            for (let j = 0; j < ringsize; j++) {
+                let tmp = this.rfc6979_generate_blind32(true/*, msgbytes*/);
+                                                    // (Must abort on overflows :TODO:)
+                if (j == this.secidx[i]) {
+                    this.knonces.push(tmp);
+                    sigset.push(BigInteger.ZERO.toBuffer(32));
+                } else {
+                    sigset.push(tmp);
+                }
+            }
+            this.sigs.push(sigset);
         }
+        assert(this.nrings == this.knonces.length, "Failed to generate all k values.");
+    }
+
+    /**
+     *
+     */
+    BuildCommitsAndPubs() {
+
+        this.ringcommits = [];  // Not needed since rings[i][0] is ringcommits[i]
+        this.rings = [];        //  ^^ TODO: remove
+
+        /***/ console.log("Building ring commitments for range proof... (slow...)");
+
+        for (let i = 0; i < this.nrings; i++) {
+            // Ugh slow...
+            let unitval = 4**i * this.scale;
+            let commitval = unitval * this.secidx[i];
+            let PointCommit = G.multiplyTwo(BigInteger.fromBuffer(this.blinds[i]),
+                                            G2, BigInteger.valueOf(commitval));
+            let commit = PointCommit.getEncoded(true); // 33-byte encoded form
+            let ring = [commit];
+            let ringsize = ((i == this.nrings-1) && this.oddbits) ? 2 : 4;
+            for (let j = 1; j < ringsize; j++) {
+                let bigval = BigInteger.valueOf(-j*unitval);
+                let PointJ = PointCommit.add(G2.multiply(bigval));
+                ring.push(PointJ.getEncoded(true));
+            }
+            this.ringcommits.push(commit);
+            this.rings.push(ring);
+        }
+        /***/ console.log("Ring commitments done.");
 
     }
 
@@ -328,15 +362,27 @@ class RangeProof {
      * Returns a "randomly" generated 32-byte value suitable for use as a
      * blinding factor (meaning fits within the curve order; we iterate if
      * overflow or zero).
+     *
+     * Added skeleton support for masking a message on top of the bits before
+     * returning.  We should abort on overflow in that case.
+     *
+     * TODO: this message masking ability should actually be forked into a
+     * differently named function, for clarity of use case.
      */
-    rfc6979_generate_blind32() {
+    rfc6979_generate_blind32(abort_on_invalid = false, maskmsg = null) {
 
         // VERY VERY VERY TEMP TODO FIX - seeding has not been done correctly
         // and if there needs to be extra state data it's not handled here yet
 
+        let retval = null;
+        let invalid = false;
+
         do {
             this.rfc6979state = hash.sha256(this.rfc6979state);
-        } while (StealthZK.BlindOverflowOrZero(this.rfc6979state));
+            retval = (maskmsg) ? this.rfc6979state /*TODO*/ : this.rfc6979state;
+            invalid = StealthZK.BlindOverflowOrZero(retval);
+            assert(!(invalid && abort_on_invalid), "Can't skip overflow with masked message");
+        } while (invalid);
           // Tries again if overflow (exceedingly rare)
 
         return this.rfc6979state;
