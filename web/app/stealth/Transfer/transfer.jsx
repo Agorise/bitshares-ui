@@ -657,7 +657,7 @@ class BlindCoin {
         /***/ console.log("Blind Coin read from Receipt: "
                           + result.valueString()
                           + " at: " + result.commitmentHex());
-        DEBUG && console.log("WSCAT: Test for commitment in blockchain with:\n"
+        false && console.log("WSCAT: Test for commitment in blockchain with:\n"
                              + 'WSCAT: {"method": "call", "params":'
                              + '[0, "get_blinded_balances", [["'
                              + Buffer.from(result.commitment).toString("hex")

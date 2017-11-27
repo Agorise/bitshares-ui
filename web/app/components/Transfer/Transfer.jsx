@@ -293,6 +293,7 @@ class Transfer extends React.Component {
         .then((r)=>{
             // TODO: I've seen the following log message on failed broadcasts,
             // so getting here is not proof positive of success.
+            // TODO: This whole section needs cleaning up...
             /***/ console.log("Success!", r);
             if (FromID.isblind) {
                 // Tell Stealth DB to mark commits in r.consumed_commits spent
@@ -313,6 +314,16 @@ class Transfer extends React.Component {
             }
             DB.Log_Sent_Receipt(FromID.markedlabel,ToID.markedlabel,
                                 r.output_meta[0].confirmation_receipt,Amount);
+            // Change-back receipt assumed if >1 outputs (although this may not
+            if (r.output_meta.length > 1) {   // always be the case - need more
+                                              // sophisticated handling)
+                let rcpt_chnge = r.output_meta[1].confirmation_receipt;
+                let rcvd_coin_db = BlindCoin.fromReceipt(rcpt_chnge,DB).toDBObject();
+                console.log("Claiming commitment: " + rcvd_coin_db.commitment
+                            + "\nvalue: " + rcvd_coin_db.value
+                            + "; (was rcpt: " + rcpt_chnge.slice(0,12) + "...)");
+                DB.ProcessSpending(ToID.label,[],[rcvd_coin_db]);
+            }
         })
         .catch((x)=>{
             console.log(x);
