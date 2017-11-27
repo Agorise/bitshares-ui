@@ -519,7 +519,7 @@ class BlindFees {
     constructor() {
 
         // This works on the official public testnet:
-        this.blindfees = [100, 500000, 0];  // Base, per-input, per-output
+        this.blindfees = [100, 0, 500000];  // Base, per-input, per-output
         this.unblind = [100];               // Cost to unblind a commitment
 
         let chainid = Apis.instance().chain_id.slice(0,8);
