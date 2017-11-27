@@ -1,8 +1,31 @@
+import React, {Component} from "react";
 import Stealth_DB from "stealth/DB/db";
 import WalletDb from "stores/WalletDb";
 import WalletUnlockStore from "stores/WalletUnlockStore";
 import WalletUnlockActions from "actions/WalletUnlockActions";
 import {str2hex, bin2hex, hex2str} from "stealth/utility";
+class Backup_Stealth extends Component {
+    render() {
+        return (
+            <div style={{maxWidth: "40rem"}}>
+                <h3>Stealth Wallet Backup</h3>
+                <p>To backup all your stealth accounts, your coins, and your contacts, simply press the Backup button below, you should do this very often, as it is currently the only way to access your <b>Stealth</b> funds in case you lose your browser cache.</p>
+                <input type="button" className="button" value="BACKUP" onClick={Local_Backup} />
+            </div>
+    );
+    }
+}
+class Import_Stealth extends Component {
+    render() {
+        return (
+            <div style={{maxWidth: "40rem"}}>
+                <h3>Stealth Wallet Backup</h3>
+                <p>To restore any kind of <b>Stealth</b> backup, simply press the restore button below.</p>
+                <input type="button" className="button" value="Restore" onClick={Local_Import} />
+            </div>
+    );
+    }
+}
 let Local_Backup = (input) =>
 {
     let Overlay = document.createElement("div");
@@ -11,6 +34,7 @@ let Local_Backup = (input) =>
     let Title_Text = null;
     let Title_Container = document.createElement("h3");
     let Description_Text = null;
+    let hsize = "215px";
     if(typeof(input) === "string")
     {
         Title_Text = document.createTextNode("Backing up "+input+".");
@@ -18,6 +42,7 @@ let Local_Backup = (input) =>
     }
     else
     {
+        hsize = "240px";
         Title_Text = document.createTextNode("Backing up Stealth Wallet.");
         Description_Text = document.createTextNode("Download this file and store it somewhere safe, this will help you restore all your stealth accounts, in this account or another by importing it from settings.");
     }
@@ -57,7 +82,7 @@ let Local_Backup = (input) =>
             "backgroundColor":"#191a1f",
             "border":"1px solid gray",
             "width": "400px",
-            "height": "215px",
+            "height": hsize,
             "margin-top": "-114px",
             "margin-left": "-200px",
             "color":"white",
@@ -320,15 +345,21 @@ let Local_Import = () => {
     });
     Ibutton.addEventListener("click",()=>
     {
+        let SDB = new Stealth_DB();
         if (WalletDb.isLocked()) 
         {
             WalletUnlockActions.unlock().then(()=>{
-                let SDB = new Stealth_DB();
-                SDB.Initialize().then(SDB.IMPORT(x));
+                SDB.Initialize().then(SDB.Import(x));
             });
         }
+        else
+        {
+            SDB.Initialize().then(SDB.Import(x));
+        }
+        screen.remove();
+        overlay.remove();
     });
 };
 
 
-export {Local_Backup,Local_Import};
+export {Local_Backup,Local_Import,Backup_Stealth,Import_Stealth};

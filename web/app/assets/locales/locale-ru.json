@@ -803,6 +803,7 @@
     "backup_brainkey":"Восстановить, используя brainkey кошелька",
     "backupcreate_backup":"Создать резервную копию кошелька",
     "backupcreate_brainkey":"Создать резервную копию brainkey",
+    "backupcreate_stealth": "Create Stealth Wallet backup",
     "lookup_text":"Нажмите кнопку ниже, чтобы проверить наличие неподтвержденных балансов с BTS 1.0",
     "delete_select":"Выберите кошелек для удаления",
     "restore_brainkey_text":"Чтобы восстановиться с помощью brainkey, Вам нужно создать новый кошелек. Пожалуйста, введите пароль и имя нового кошелька в строки ниже, потом введите brainkey.",

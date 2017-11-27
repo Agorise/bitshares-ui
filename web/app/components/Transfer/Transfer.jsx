@@ -23,7 +23,8 @@ import Stealth_DB from "stealth/DB/db";
 import {Stealth_Transfer} from "stealth/Transfer/transfer";
 import {BlindCoin,StealthID} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
-import {Local_Import} from "stealth/Visual_Components/Backup_Screens";
+import {Local_Import,Local_Backup} from "stealth/Visual_Components/Backup_Screens";
+
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -392,7 +393,7 @@ class Transfer extends React.Component {
     CopyStealthAmmount(value)
     {
         //Estimate fee
-        fee = 0;
+        let fee = 0;
         //
         this.setState({amount: value-fee});
     }
@@ -467,6 +468,10 @@ class Transfer extends React.Component {
         }
     }
     TEST()
+    {
+        Local_Backup();
+    }
+    TEST2()
     {
         Local_Import();
     }

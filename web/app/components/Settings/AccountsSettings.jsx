@@ -6,7 +6,7 @@ import { connect } from "alt-react";
 import utils from "common/utils";
 import Translate from "react-translate-component";
 import Stealth_DB from "stealth/DB/db";
-
+import stealth_keys from "stealth/Visual_Components/stealth_keys";
 class AccountsSettings extends React.Component {
     constructor()
     {
@@ -54,7 +54,7 @@ class AccountsSettings extends React.Component {
                         return(
                             <tr key={account}>
                             <td>{account}</td>
-                            <td>View_Keys</td>
+                            <td><a onClick={stealth_keys.bind(this,account)}>View Keys</a></td>
                             </tr>
                         );
                     })}

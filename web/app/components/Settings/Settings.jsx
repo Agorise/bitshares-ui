@@ -62,10 +62,10 @@ class Settings extends React.Component {
             "wallet",
             "accounts",
             "password",
-    //        "backup", Don't use any of these, as it is an experimental version we don't want you to lose any real funds you may have.
-    //        "restore",
-    //        "access",
-    //        "faucet_address"
+            "backup", 
+            "restore",
+            "access",
+            "faucet_address"
         ];
 
         if (props.settings.get("passwordLogin")) {

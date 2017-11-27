@@ -117,22 +117,12 @@ let Sent_Receipt_Screen = (r,t) =>{
     _Window.appendChild(Description_Container);
     _Window.appendChild(Receipt_Container);
     _Window.appendChild(OK_Button);
-    /*
-    let Title_Text = document.createTextNode("Transaction Successful!");
-    let Title_Container = document.createElement("h5");
-    let Description_Text = document.createTextNode("Send this to " + t + "so he can receive the funds you just sent him!");
-    let Description_Container = document.createElementt("p");
-    let Receipt_Text = document.createTextNode(r);
-    let Receipt_Container = document.createElement("p");*/
+
     document.body.appendChild(Overlay);
     document.body.appendChild(_Window);
     let overlay = document.getElementById("RECEIPT_OVERLAY");
     let _window = document.getElementById("RECEIPT_WINDOW");
     let BUTTONOK = document.getElementById("Sent_Receipt_OK");
-    /*overlay.addEventListener("click", function(){
-        _window.remove();
-        overlay.remove();
-    });*/
     let TEXT_AREA = document.getElementById("RECEIPT_TEXT_AREA");
     var RECEIPT_TEXT_AREA = document.querySelector("#RECEIPT_TEXT_AREA");
     TEXT_AREA.addEventListener("mousedown",(e)=>{

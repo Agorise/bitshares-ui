@@ -793,6 +793,7 @@
     "backupcreate_backup": "Cüzdanı yedekle",
     "backup_brainkey": "TekAnahtar yedeği ile cüzdan oluştur",
     "backupcreate_brainkey": "TekAnahtar yedeği oluştur",
+    "backupcreate_stealth": "Create Stealth Wallet backup",
     "restore_brainkey_text": "Hesabınıza TekAnahtar ile erişim sağlamak için öncelikle yeni, boş bir cüzdan oluşturmalısınız. Cüzdanı oluşturmak için lütfen bir cüzdan ismi (herhangi bir şey olabilir, hatırlamanız içindir, sisteme kaydedilmez) ve şifre belirleyin, ve sonra TekAnahtarınızı girin. Bu işlemle yeni bir cüzdan oluşturulup içerisine hesabınız eklenecektir.",
     "restore_bin_success": "Hesabıma git",
     "lookup_text": "BTS 1.0'den kalan bakiyelerinizi almak için tıklayın.",

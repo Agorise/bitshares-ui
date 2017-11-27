@@ -94,7 +94,52 @@ class Stealth_DB
         }
         return false;
     }
-
+    Get_Raw_Balance_List(a)
+    {
+        if(typeof(a) !== "string"){return false;}
+        let A = this.get_account(a);
+        if(A === false){return A;}
+        let x = A.get_funds();
+        let result = [];
+        for(let i=0;i<x.length;i++)
+        {
+            if(!(x[i].spent))
+            {
+                let coin = {asset_id: x[i].asset_id,value: x[i].value};
+                result.push(coin);
+            }
+        }
+        //console.log("RAW:");
+        //console.log(result);
+        return result;
+    }
+    Get_Balance_List(a)
+    {
+        let processing = this.Get_Raw_Balance_List(a);
+        let discovered_coin_name  = [];
+        let discovered_coin_value = [];
+        for(let i=0;i<processing.length;i++)
+        {
+            let tmp = discovered_coin_name;
+            let position = tmp.indexOf(processing[i].asset_id);
+            if(position !== -1)
+            {
+                discovered_coin_value[position] = (parseFloat(discovered_coin_value[position])+(parseFloat(processing[i].value)/100000)).toString();
+            }
+            else
+            {
+                discovered_coin_name.push(processing[i].asset_id);
+                discovered_coin_value.push((parseFloat(processing[i].value)/100000));
+            }
+        }
+        let result = [];
+        for(let x=0;x<discovered_coin_name.length;x++)
+        {
+            let coin = {asset_id: discovered_coin_name[x],value: discovered_coin_value[x]};
+            result.push(coin);
+        }
+        return result;
+    }
     create_account(A)
     {
         if(this.get_account(A.label) !== false){return false;}
@@ -108,7 +153,7 @@ class Stealth_DB
             sent_receipts: A.sent_receipts,
             received_receipts: A.received_receipts,
             blind_balance: A.blind_balance
-        }).then(()=>{this.accounts.push(A);});
+        }).then(()=>{this.accounts.push(A);this.Update_Blind_Balance(A);});
         return true;
     }
     create_contact(C)
@@ -558,7 +603,7 @@ class Stealth_DB
     Export_Contact(sctc_identifier)
     {
         if(this.tempy !== null){this.Lock();}
-        let C = this.Get("contacts", sctc_identifier);
+        let C = this.Get("contact", sctc_identifier);
         if(C === false){return false;}
         return JSON.stringify(C);
     }
@@ -605,18 +650,19 @@ class Stealth_DB
     }
     Import_DB(backup)
     {
+        console.log(backup);
         if(backup === null){console.log("Null input passed to Import_DB!");}
-        if(backup.constructor !== Uint8Array){console.log("Expecting Uint8Array, you inputted"+backup.constructor+"instead!");return false;}
         let O = backup;
         let ACCS = O[0];
         let CTCS = O[1];
         for(let i=0;i<O[0].length;i++)
         {
-            Import_Account(ACCS[i]);
+            console.log(JSON.parse(ACCS[i]));
+            this.Import_Account(JSON.parse(ACCS[i]));
         }
         for(let i=0;i<O[1].length;i++)
         {
-            Import_Contact(CTCS[i]);
+            this.Import_Contact(JSON.parse(CTCS[i]));
         }
         return true;
     }
@@ -630,10 +676,10 @@ class Stealth_DB
     Import(backup)
     {
         let x = JSON.parse(hex2str((bin2hex(backup))));
-        let type = Check_Import_Type(x);
-        if(type === "account"){Import_Account(x);}
-        if(type === "contact"){Import_Contact(x);}
-        if(type === "full_backup"){Import_DB(x);}
+        let type = this.Check_Import_Type(x);
+        if(type === "account"){this.Import_Account(x);}
+        if(type === "contact"){this.Import_Contact(x);}
+        if(type === "full_backup"){this.Import_DB(x);}
     }
 }
 export default Stealth_DB;

@@ -20,6 +20,7 @@ import Stealth_DB from "stealth/DB/db";
 import { ContextMenuProvider } from "react-contexify";
 import confidential_logo from "stealth/Visual_Components/images/confidential.png";
 import Receive_Receipt_Screen from "stealth/Visual_Components/Receive_Receipt";
+import stealth_balance from "stealth/Visual_Components/list_stealth_balance";
 const starSort = function(a, b, inverse, starredAccounts) {
 	let aName = a.get("name");
 	let bName = b.get("name");
@@ -255,11 +256,11 @@ class DashboardList extends React.Component {
 		return xaccounts
 		.filter(a => {
 			if (!a) return false;
-			console.log(a.label);
+			//console.log(a.label);
 			return a.label.indexOf(dashboardFilter) !== -1;
 		}).map(xacc => {
 			return (
-				<tr key={xacc.label} id={"stealthacc_"+xacc.label}>
+				<tr key={xacc.label} id={"stealthacc_"+xacc.label} onClick={stealth_balance.bind(this,xacc.label)}>
 					<td><Icon className="grey-star" name="fi-star"/></td>
 					<td style={{color: "#4690e2"}}>
 					<div style={{display: "flex"}}>

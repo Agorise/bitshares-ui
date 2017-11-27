@@ -3,6 +3,40 @@ import { ContextMenu, Item, Separator, IconFont } from "react-contexify";
 import Stealth_DB from "stealth/DB/db";
 import {Local_Backup} from "stealth/Visual_Components/Backup_Screens";
 import copy from "copy-to-clipboard";
+import WalletDb from "stores/WalletDb";
+import WalletUnlockActions from "actions/WalletUnlockActions";
+let GetPrivateKey = (targetNode, x) => 
+{
+    if (WalletDb.isLocked()) {
+        WalletUnlockActions.unlock().then(() => {
+            copy(x.get_account(targetNode.innerText).privatekey, {
+                debug: false,
+                message: "This is your private key, never share it with anyone, it's the one thing that gives you access to your funds. Use it in case you wish to import it elsewhere.",
+            });
+        });
+    }
+    else
+    {
+        copy(x.get_account(targetNode.innerText).privatekey, {
+            debug: false,
+            message: "This is your private key, never share it with anyone, it's the one thing that gives you access to your funds. Use it in case you wish to import it elsewhere.",
+        });
+    }
+    
+};
+let Backup = (targetNode) => 
+{
+    if (WalletDb.isLocked()) {
+        WalletUnlockActions.unlock().then(() => {
+            Local_Backup(targetNode.innerText);
+        });
+    }
+    else{
+        Local_Backup(targetNode.innerText);
+    }
+    
+};
+
 function onClick(targetNode, ref, data) {
     let x = new Stealth_DB();
     x.Initialize().then(()=>{
@@ -18,15 +52,12 @@ function onClick(targetNode, ref, data) {
                 }
             case "Private":
                 {
-                    copy(x.get_account(targetNode.innerText).privatekey, {
-                        debug: false,
-                        message: "This is your private key, never share it with anyone, it's the one thing that gives you access to your funds. Use it in case you wish to import it elsewhere.",
-                    });
+                    GetPrivateKey(targetNode,x);
                     break;
                 }
             case "Backup":
                 {
-                    Local_Backup(targetNode.innerText);
+                    Backup(targetNode);
                     break;
                 }
             case "Delete":

@@ -97,12 +97,8 @@ class Stealth_Account
     }
     get_funds()
     {
-        let result = [];
-        for(let i=0;i<this.received_receipts.length;i++)
-        {
-            let tmp = [this.received_receipts[i].asset_id,this.received_receipts[i].value];
-            result.push(tmp);
-        }
+        let result = this.received_receipts;
+        //console.log(result);
         return result;
     }
     receive_receipt(R)

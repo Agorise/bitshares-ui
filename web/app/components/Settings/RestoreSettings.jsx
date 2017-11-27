@@ -5,6 +5,7 @@ import {CreateWalletFromBrainkey} from "../Wallet/WalletCreate";
 import Translate from "react-translate-component";
 import counterpart from "counterpart";
 import SettingsActions from "actions/SettingsActions";
+import {Import_Stealth} from "stealth/Visual_Components/Backup_Screens";
 
 export default class RestoreSettings extends React.Component {
 
@@ -12,7 +13,7 @@ export default class RestoreSettings extends React.Component {
         super();
         this.state = {
             restoreType: 0,
-            types: ["backup", "key", "legacy", "brainkey"]
+            types: ["backup", "key", "legacy", "brainkey", "stealth"]
         };
     }
 
@@ -50,27 +51,37 @@ export default class RestoreSettings extends React.Component {
 
         let content;
 
-        switch (types[restoreType]) {
-        case "backup":
-            content = (
-                <div>
-                    <BackupRestore />
-                </div>
-            );
-            break;
-
-        case "brainkey":
-            content = (
-                <div>
-                    <p style={{maxWidth: "40rem", paddingBottom: 10}}><Translate content="settings.restore_brainkey_text" /></p>
-                    <CreateWalletFromBrainkey nested />
-                </div>
-            );
-            break;
-
-        default:
-            content = <ImportKeys privateKey={restoreType === 1} />;
-            break;
+        switch (types[restoreType]) 
+        {
+            case "backup":
+                {
+                    content = (
+                    <div>
+                        <BackupRestore />
+                    </div>
+                    );
+                    break;
+                }
+            case "brainkey":
+                {
+                    content = (
+                        <div>
+                            <p style={{maxWidth: "40rem", paddingBottom: 10}}><Translate content="settings.restore_brainkey_text" /></p>
+                            <CreateWalletFromBrainkey nested />
+                        </div>
+                    );
+                    break;
+                }
+            case "stealth":
+                {
+                    content = (<Import_Stealth />);
+                    break;        
+                }
+            default:
+                {
+                    content = <ImportKeys privateKey={restoreType === 1} />;
+                    break;
+                }
         }
 
         return (

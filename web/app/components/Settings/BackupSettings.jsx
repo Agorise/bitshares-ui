@@ -2,6 +2,7 @@ import React from "react";
 import {BackupCreate} from "../Wallet/Backup";
 import BackupBrainkey from "../Wallet/BackupBrainkey";
 import counterpart from "counterpart";
+import {Backup_Stealth} from "stealth/Visual_Components/Backup_Screens";
 
 export default class BackupSettings extends React.Component {
 
@@ -9,7 +10,7 @@ export default class BackupSettings extends React.Component {
         super();
         this.state = {
             restoreType: 0,
-            types: ["backup", "brainkey"]
+            types: ["backup", "brainkey","stealth"]
         };
     }
 
@@ -19,7 +20,7 @@ export default class BackupSettings extends React.Component {
             restoreType: this.state.types.indexOf(e.target.value)
         });
     }
-
+    
     render() {
         let {types, restoreType} = this.state;
         let options = types.map(type => {
@@ -29,16 +30,27 @@ export default class BackupSettings extends React.Component {
         let content;
 
         switch (types[restoreType]) {
-        case "backup":
-            content = <BackupCreate />;
-            break;
-
-        case "brainkey":
-            content = <BackupBrainkey />;
-            break;
-
-        default:
-            break;
+            case "backup":
+                {
+                    content = <BackupCreate />;
+                    break;
+                }
+            case "brainkey":
+                {
+                    console.log("Work1?");
+                    content = <BackupBrainkey />;
+                    break;   
+                }
+            case "stealth":
+                {
+                    console.log("Work?");
+                    content = <Backup_Stealth />;
+                    break;
+                }
+            default:
+                {
+                    break;
+                }
         }
 
         return (
