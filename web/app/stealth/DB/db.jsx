@@ -468,7 +468,6 @@ class Stealth_DB
     PrivKeyFinder(publickey)
     {
         let found = this.Get("account", publickey).privatekey;
-        console.log(found);
         if(found !== false){return found;}
         return false;
     }
@@ -479,7 +478,6 @@ class Stealth_DB
     */
     Log_Sent_Receipt(a, c, r, v)
     {
-        console.log("LOGGING SENT RECEIPT A:"+a+" c:"+c+" r:"+r+" v:"+v);
         if(a === null){ return new Error("You haven't specified the account name you sent to."); }
         if(a[0] === "@"){ a = this.stripat(a); }
         if(c === null){return new Error("You haven't specified the contact you sent to.");}
@@ -650,14 +648,12 @@ class Stealth_DB
     }
     Import_DB(backup)
     {
-        console.log(backup);
         if(backup === null){console.log("Null input passed to Import_DB!");}
         let O = backup;
         let ACCS = O[0];
         let CTCS = O[1];
         for(let i=0;i<O[0].length;i++)
         {
-            console.log(JSON.parse(ACCS[i]));
             this.Import_Account(JSON.parse(ACCS[i]));
         }
         for(let i=0;i<O[1].length;i++)
