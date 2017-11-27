@@ -24,7 +24,7 @@ import {Stealth_Transfer} from "stealth/Transfer/transfer";
 import {BlindCoin,StealthID} from "stealth/Transfer/transfer";
 import Sent_Receipt_Screen from "stealth/Visual_Components/Sent_Receipt";
 import {Local_Import,Local_Backup} from "stealth/Visual_Components/Backup_Screens";
-
+import {temp_warn, temp_warn_remove} from "stealth/Visual_Components/temp_warn";
 class Transfer extends React.Component {
 
     constructor(props) {
@@ -328,7 +328,7 @@ class Transfer extends React.Component {
         .catch((x)=>{
             console.log(x);
         });
-
+        temp_warn_remove();
     }
     Compute_Transaction_Type(BUTTONTYPE)
     {
@@ -366,7 +366,13 @@ class Transfer extends React.Component {
                 }
             case 1: // Stealth.Blind
                 {
-                    this.Execute_Stealth_Transaction(e,Transaction_Type);
+                    temp_warn();
+                    setTimeout(()=> 
+                    {
+                        this.Execute_Stealth_Transaction(e,Transaction_Type);
+                    }, 2000);
+
+                    
                     break;
                 }
             default:
@@ -480,11 +486,11 @@ class Transfer extends React.Component {
     }
     TEST()
     {
-        Local_Backup();
+        temp_warn();
     }
     TEST2()
     {
-        Local_Import();
+        temp_warn_remove();
     }
     render() {
         let from_error = null;
