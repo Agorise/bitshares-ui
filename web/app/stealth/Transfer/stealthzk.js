@@ -190,6 +190,7 @@ class RangeProof {
         let RP = new RangeProof();
 
         RP.SetValue(value);
+        RP.commitment = StealthZK.BlindCommit(blind, value);
 
         /***/ console.log("Constructing range proof of " + RP.value +
                           " revealing " + RP.min_value +
@@ -198,9 +199,8 @@ class RangeProof {
 
         RP.ComputeRadix4Arrays();   // Gets us this.secidx and this.commitvals
         RP.GenRand(nonce, blind);   // Computes blinds, nonces, and fake signatures
-        //RP.EmbedMessage("");
         RP.BuildCommitsAndPubs();   // Radix-4 Commits and PubKey Rings
-        //RP.BorromeanSign();
+        RP.BorromeanSign();
 
         /***/ console.log("RP Object so far:", RP);
 
@@ -213,6 +213,12 @@ class RangeProof {
     /**
      * Set proof value and and separate into encoded (hidden) and visible
      * minimum values based on desired base-10 exponent.
+     *
+     * Sets:  this.value
+     *        this.scale
+     *        this.mantissaval
+     *        this.min_value
+     *        this.mantissabits
      */
     SetValue(value) {
 
@@ -238,6 +244,11 @@ class RangeProof {
     /**
      * Computes secidx and ringvalue arrays.  Assumes mantissaval, mantissabits,
      * and scale are already set.
+     *
+     * Sets:  this.nrings
+     *        this.obbbits (bool)
+     *        this.secidx[]
+     *        this.commitvals[]
      */
     ComputeRadix4Arrays() {
 
@@ -263,9 +274,6 @@ class RangeProof {
             this.commitvals.push(commitval);
         }
 
-        ///***/ console.log("SecIdx", this.secidx);
-        ///***/ console.log("CommitVals", this.commitvals);
-
     }
 
     /**
@@ -280,6 +288,9 @@ class RangeProof {
      *  NOW as at present this message feature is not used on the BitShares
      *  network.
      *
+     *  Sets:  this.blinds[]
+     *         this.sigs[][]
+     *         this.knonces[]
      */
     GenRand(nonce, blindtarget) {
 
@@ -318,6 +329,8 @@ class RangeProof {
 
     /**
      *
+     * Sets:  this.ringcommits[]     (TODO: Maybe remove)
+     *        this.rings[][] (As Point objects, not Buffers)
      */
     BuildCommitsAndPubs() {
 
@@ -332,18 +345,138 @@ class RangeProof {
             let commitval = unitval * this.secidx[i];
             let PointCommit = G.multiplyTwo(BigInteger.fromBuffer(this.blinds[i]),
                                             G2, BigInteger.valueOf(commitval));
-            let commit = PointCommit.getEncoded(true); // 33-byte encoded form
-            let ring = [commit];
+            let ring = [PointCommit];
             let ringsize = ((i == this.nrings-1) && this.oddbits) ? 2 : 4;
             for (let j = 1; j < ringsize; j++) {
                 let bigval = BigInteger.valueOf(-j*unitval);
                 let PointJ = PointCommit.add(G2.multiply(bigval));
-                ring.push(PointJ.getEncoded(true));
+                //ring.push(PointJ.getEncoded(true));
+                ring.push(PointJ);
             }
+            let commit = PointCommit.getEncoded(true); // 33-byte encoded form
             this.ringcommits.push(commit);
             this.rings.push(ring);
         }
         /***/ console.log("Ring commitments done.");
+
+    }
+
+    /**
+     * Computes the Borromean Ring Signature
+     *
+     * Sets:  this.borro_e0
+     *
+     * Modifies:  this.sigs[][]  (Specifically, computes the non-forged sig)
+    */
+    BorromeanSign() {
+
+        /***/ console.log("Borromean Ring Signing... (slow...)");
+
+        // Construct the "message" that we sign (binds us to the proof)
+        this.ProofMessage();    // result stored in this.borro_m
+
+        let K_fin_bufs = []     // Accumulate finial K's
+
+        // Get finial K_ij's and e0:
+        for (let i = 0; i < this.nrings; i++) {
+
+            let Ki = G.multiply(BigInteger.fromBuffer(this.knonces[i]));
+            // TODO: assert Ki finite
+            let Kprev_buf = Ki.getEncoded(true);
+
+            let ringsize = ((i == this.nrings-1) && this.oddbits) ? 2 : 4;
+            for (let j = this.secidx[i]+1; j < ringsize; j++) {
+
+                let e_ij = this.BorromeanHash(Kprev_buf, i, j);
+                // TODO: assert finite nooverflow
+                let Kij = G.multiplyTwo(BigInteger.fromBuffer(this.sigs[i][j]),
+                                        this.rings[i][j], BigInteger.fromBuffer(e_ij));
+                // TODO: assert finite
+                Kprev_buf = Kij.getEncoded(true);
+
+            }
+            K_fin_bufs.push(Kprev_buf);
+
+        }
+        K_fin_bufs.push(this.borro_m);  // Also append proof message
+        let e0_data = Buffer.concat(K_fin_bufs);
+        this.borro_e0 = hash.sha256(e0_data);
+
+        /***/ console.log("...Got e0 value.");
+
+        // Now compute the non-forged signatures:
+        for (let i = 0; i < this.nrings; i++) {
+
+            let e_ij = this.BorromeanHash(this.borro_e0, i, 0);
+            // TODO: assert finite nooverflow
+
+            for (let j = 0; j < this.secidx[i]; j++) {
+
+                let Kij = G.multiplyTwo(BigInteger.fromBuffer(this.sigs[i][j]),
+                                        this.rings[i][j], BigInteger.fromBuffer(e_ij));
+                // TODO: assert finite
+                e_ij = this.BorromeanHash(Kij.getEncoded(true), i, j+1);
+                // TODO: assert finite nooverflow
+
+            }
+
+            let sigi = BigInteger.fromBuffer(e_ij)
+                        .multiply(BigInteger.fromBuffer(this.blinds[i]))
+                        .mod(n);
+            sigi = BigInteger.fromBuffer(this.knonces[i]).subtract(sigi).mod(n);
+            // TODO: assert finite
+            this.sigs[i][this.secidx[i]] = sigi.toBuffer(32);
+
+        }
+        /***/ console.log("Borromean signature complete.");
+    }
+
+    /**
+     * The "message" that we sign is the sha256 hash of the commitment whose
+     * range we are proving, the proof header which sets the parameters of the
+     * ring commitments, and all but the last of the radix-4 ring commitments
+     * (since the last is inferrable from the others and the value commit).
+     *
+     * Sets:  this.borro_m
+     *        this.proof_header
+     */
+    ProofMessage() {
+
+        let hdr0 = 256*(64 | this.exponent | (this.min_value ? 32 : 0));
+        hdr0 += (this.mantissabits - 1);
+        let hdr_str = hdr0.toString(16);
+        if (this.min_value) {
+            let minvalstr = this.min_value.toString(16);
+            minvalstr = "0".repeat(128-minvalstr.length) + minvalstr;
+            hdr_str += minvalstr;
+        }
+        this.proof_header = Buffer.from(hdr_str, "hex");  // Can use later for
+                                                          // serialization
+        let full_msg = Buffer.concat([this.commitment, this.proof_header,
+                                      Buffer.concat(this.ringcommits.slice(0,-1))]);
+
+        this.borro_m = hash.sha256(full_msg);
+        return this.borro_m;
+
+    }
+
+    /**
+     *  In:  Kprev (Buffer 33 bytes) - previous K in ring
+     *       ridx  (integer numeric) - ring index
+     *       eidx  (integer numeric) - e index of resulting e
+     *
+     *  Assumes:   this.borro_m (Buffer 32 bytes) - proof message
+     *
+     *  Returns:  e_ij suitable for K_ij = e_ij * P_ij + s_ij * G
+     */
+    BorromeanHash(Kprev, ridx, eidx) {
+
+        // Assuming nrings <= 32 and rsize <= 4, safe to upconvert integer
+        // indices from bytes as follows:
+        let ridx_buf = Buffer.from([0, 0, 0, ridx]);
+        let eidx_buf = Buffer.from([0, 0, 0, eidx]);
+        let data = Buffer.concat([Kprev, this.borro_m, ridx_buf, eidx_buf]);
+        return hash.sha256(data);
 
     }
 
