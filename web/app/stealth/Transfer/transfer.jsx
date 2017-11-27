@@ -13,7 +13,7 @@ import {blind_output,blind_memo,blind_input,blind_output_meta,
         blind_confirmation,stealth_cx_memo_data,stealth_confirmation,
         transfer_to_blind_op,transfer_from_blind_op,blind_transfer_op
        } from "stealth/Transfer/confidential";
-import StealthZK from "stealth/Transfer/stealthzk.js";
+import {StealthZK, RangeProof} from "stealth/Transfer/stealthzk.js";
 import * as Serializer from "agorise-bitsharesjs/es/serializer/src/operations.js";
 import {Long} from "bytebuffer";
 
@@ -395,8 +395,8 @@ class Stealth_Transfer
                          "address_auths":[]};
             out.commitment = StealthZK.BlindCommit(blind_factor,amount);
             out.range_proof = needrangeproof ?
-                new Uint8Array(0) :             // TODO: needs to be range proof
-                new Uint8Array(0);              // (Not needed for 1 output)
+                RangeProof.SignValue(amount, blind_factor, nonce) :
+                new Uint8Array(0);                  // (Not needed for 1 output)
 
             let meta = new blind_output_meta;       // Metadata for each output, to
             meta.label = Recipient.label;           // be kept in blindconf for our

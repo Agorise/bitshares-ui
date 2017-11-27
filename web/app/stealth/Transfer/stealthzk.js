@@ -146,9 +146,16 @@ class StealthZK {
  *
  */
 
+/* TEMP DISABLE FULL PRECISION because SLOW: TODO: restore
 const FPPIntBits = 53;      // Precision Integer bits in double-precision
                             // Floating Point values.
 const FPPIntMax = 2**53-1;  // Maximim precisely-representable integer in the
+                            // 52-bit mantissa of a double-precision float with
+                            // implied leading bit.
+*/
+const FPPIntBits = 44;      // Precision Integer bits in double-precision
+                            // Floating Point values.
+const FPPIntMax = 2**44-1;  // Maximim precisely-representable integer in the
                             // 52-bit mantissa of a double-precision float with
                             // implied leading bit.
 
@@ -185,9 +192,9 @@ class RangeProof {
      * @arg commitment - The commitment we are constructing a proof for (do we
      *                   actually need this?)
      */
-    static SignValue(value, blind, nonce, commitment) {
+    static SignValue(value, blind, nonce /*, commitment*/) {
 
-        let RP = new RangeProof();
+        let RP = new RangeProof(3);
 
         RP.SetValue(value);
         RP.commitment = StealthZK.BlindCommit(blind, value);
@@ -201,12 +208,13 @@ class RangeProof {
         RP.GenRand(nonce, blind);   // Computes blinds, nonces, and fake signatures
         RP.BuildCommitsAndPubs();   // Radix-4 Commits and PubKey Rings
         RP.BorromeanSign();
+        RP.Serialize();
 
         /***/ console.log("RP Object so far:", RP);
 
         // return a Uint8Array (or maybe higher level object. ByteBuffer?)
         // Signal failure with zero-length buffer?  Or exception?
-        //return RP.Serialize();
+        return RP.proof_serialized;
 
     }
 
@@ -447,7 +455,7 @@ class RangeProof {
         let hdr_str = hdr0.toString(16);
         if (this.min_value) {
             let minvalstr = this.min_value.toString(16);
-            minvalstr = "0".repeat(128-minvalstr.length) + minvalstr;
+            minvalstr = "0".repeat(16-minvalstr.length) + minvalstr;
             hdr_str += minvalstr;
         }
         this.proof_header = Buffer.from(hdr_str, "hex");  // Can use later for
@@ -477,6 +485,53 @@ class RangeProof {
         let eidx_buf = Buffer.from([0, 0, 0, eidx]);
         let data = Buffer.concat([Kprev, this.borro_m, ridx_buf, eidx_buf]);
         return hash.sha256(data);
+
+    }
+
+    /**
+     *
+     */
+    Serialize() {
+
+        /***/ console.log("Serializing Range Proof...");
+
+        let header_buf = this.proof_header; // pre-calced by ProofMessage()
+
+        // Sign bytes
+        let num_sign_bytes = Math.ceil((this.nrings-1) / 8);
+        let sign_bytes = Array(num_sign_bytes).fill(0);
+        for (let i = 0; i < this.nrings-1; i++) {
+            let signbit = this.rings[i][0].y.isEven() ? 0 : 1;
+            sign_bytes[i>>3] |= (signbit << (i&7));
+        }
+        let sign_buf = Buffer.from(sign_bytes);
+
+        // Ring commits less sign byte:
+        let commit_bufs32 = [];
+        for (let i = 0; i < this.nrings-1; i++) {
+            commit_bufs32.push(this.rings[i][0].getEncoded(true).slice(-32));
+        }
+        let commits_buf = Buffer.concat(commit_bufs32);
+
+        let e0_buf = this.borro_e0;
+
+        // Signatures:
+        let sigarray = [];
+        for (let i = 0; i < this.nrings; i++) {
+            let ringsize = ((i == this.nrings-1) && this.oddbits) ? 2 : 4;
+            for (let j = 0; j < ringsize; j++) {
+                sigarray.push(this.sigs[i][j]);
+            }
+        }
+        let sigs_buf = Buffer.concat(sigarray);
+
+        this.proof_serialized
+            = Buffer.concat([header_buf, sign_buf, commits_buf, e0_buf, sigs_buf]);
+
+        /***/ console.log("Done. Range proof serialized to " +
+                          this.proof_serialized.length + " bytes.");
+
+        return this.proof_serialized;
 
     }
 
