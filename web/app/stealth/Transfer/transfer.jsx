@@ -322,8 +322,9 @@ class Stealth_Transfer
                           (this.amount + feebase), feeperinput, feeperoutput);
 
         /***/ console.log("Selected " + CoinsIn.length +
-                          " Coins as input to Blind2Blind transaction."
-                         );
+                          " Coins as input to Blind2Blind transaction, "
+                          + BlindCoin.valueSum(CoinsIn).toNumber()
+                          + " total satoshis.");
 
         let totalfee = feebase + feeperoutput + feeperinput * CoinsIn.length;
         let changeamount = BlindCoin.valueSum(CoinsIn) - this.amount - totalfee;
@@ -346,15 +347,23 @@ class Stealth_Transfer
             = {"amount":totalfee, "asset_id":this.asset.get("id")};
         bop.fee = feeamountasset;
 
-        /***/ console.log ("Change amount: " + changeamount);
+        /***/ console.log ("TX amount: " + this.amount + " Change back: " +
+                           changeamount + " Fee: " + totalfee);
 
-        let Recipients = [this.to];
-        Recipients[0].amountdue
-            = {"amount":this.amount, "asset_id":this.asset.get("id")};
-        if (changeoutputneeded) {
-            Recipients.push(this.from); // Change recipient is sender
-            Recipients[1].amountdue = {"amount":changeamount,
-                                       "asset_id":this.asset.get("id")};
+        let Recipients = [];
+
+        Recipients[0] = {"label":this.to.label, "markedlabel":this.to.markedlabel,
+                         "amountdue":{"amount":this.amount,
+                                      "asset_id":this.asset.get("id")},
+                         "pubkey":this.to.pubkey
+                        };
+
+        if (changeoutputneeded) { // Change recipient is sender
+            Recipients.push({"label":this.from.label, "markedlabel":this.from.markedlabel,
+                             "amountdue":{"amount":changeamount,
+                                          "asset_id":this.asset.get("id")},
+                             "pubkey":this.from.pubkey
+                            });
         }
 
         let blind_factors_in = CoinsIn.map(a => a.blinding_factor);
@@ -389,9 +398,10 @@ class Stealth_Transfer
                               + "; amount = " + amount);
 
             let out = new blind_output;             // One output per recipient
-            out.owner = {"weight_threshold":to_temp_acct?0:1,
+            let nullowner = to_temp_acct && (i===0);// To be claimed in op 41
+            out.owner = {"weight_threshold":nullowner?0:1,
                          "account_auths":[],
-                         "key_auths":to_temp_acct?[]:[[to_key.child(child),1]],
+                         "key_auths":nullowner?[]:[[to_key.child(child),1]],
                          "address_auths":[]};
             out.commitment = StealthZK.BlindCommit(blind_factor,amount);
             out.range_proof = needrangeproof ?
@@ -455,12 +465,15 @@ class Stealth_Transfer
         // Get first-stage operation:
         let feebase = this.fees.unblind[0];       // Base fee for unblind op
         let whoto = this.to; this.to = this.from; // Gonna send to self, sorta
-        this.amount += feebase; // TEMP TODO this is hacky as hell
-        let stage1 = this.Blind_to_Blind(true);   // get tx with temp acct
-        this.to = whoto;  // (Not sure if needed/wanted)
+        this.amount += feebase;                   // Stage 1 needs to make room
+                                                  // for stage 2 fees.
+        let stage1 = this.Blind_to_Blind(true);   // Do an op-40 with an owner-
+        this.to = whoto;                          // less output
+
         /***/ console.log("B2PUB: Stage 1 was", stage1);
 
-        let bop = new transfer_from_blind_op;
+        let bop = new transfer_from_blind_op;     // Start an op-41 to claim the
+                                                  // ownerless output
 
         let feeamount = feebase;            // TEMP need to get from chain
         let feeamountasset = {"amount":feeamount, "asset_id":this.asset.get("id")};

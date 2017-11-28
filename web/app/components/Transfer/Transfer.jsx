@@ -319,10 +319,10 @@ class Transfer extends React.Component {
                                               // sophisticated handling)
                 let rcpt_chnge = r.output_meta[1].confirmation_receipt;
                 let rcvd_coin_db = BlindCoin.fromReceipt(rcpt_chnge,DB).toDBObject();
-                console.log("Claiming commitment: " + rcvd_coin_db.commitment
+                console.log("Claiming change commitment: " + rcvd_coin_db.commitment
                             + "\nvalue: " + rcvd_coin_db.value
                             + "; (was rcpt: " + rcpt_chnge.slice(0,12) + "...)");
-                DB.ProcessSpending(ToID.label,[],[rcvd_coin_db]);
+                DB.ProcessSpending(FromID.label,[],[rcvd_coin_db]);
             }
         })
         .catch((x)=>{
