@@ -137,6 +137,13 @@ class StealthZK {
  *  53 bits is still big enough to represent GRAPHENE_MAX_SUPPLY so we *should*
  *  be OK in this regard.
  *
+ *  (2a) Actually it turns out that if the proven range exceeds
+ *  GRAPHENE_MAX_SHARE_SUPPLY (even if the value hidden is less) the network
+ *  will reject the transaction.  So we want to use a max bit length of less
+ *  than the MAX.  Log2(MAX_SUPPLY) is actually 49.829.  Allowing some headroom
+ *  expansion from using the base-10 exponent feature, I set a bit length max of
+ *  48 to avoid crossing the MAX_SUPPLY.
+ *
  *  (3) We somewhat arbitrarily restrict the allowed base-10 exponent to 12.  We
  *  could support more, but it restricts the range that remains hidden to less
  *  than 14 bits, putting privacy at risk (and suggests a large honeypot).  In
@@ -146,18 +153,17 @@ class StealthZK {
  *
  */
 
-/* TEMP DISABLE FULL PRECISION because SLOW: TODO: restore
-const FPPIntBits = 53;      // Precision Integer bits in double-precision
+const FPPIntBits = 48;      // Precision Integer bits in double-precision
                             // Floating Point values.
-const FPPIntMax = 2**53-1;  // Maximim precisely-representable integer in the
+const FPPIntMax = 2**48-1;  // Maximim precisely-representable integer in the
                             // 52-bit mantissa of a double-precision float with
                             // implied leading bit.
-*/
-const FPPIntBits = 44;      // Precision Integer bits in double-precision
-                            // Floating Point values.
-const FPPIntMax = 2**44-1;  // Maximim precisely-representable integer in the
-                            // 52-bit mantissa of a double-precision float with
-                            // implied leading bit.
+
+const RPPrivacyTarget = 2**25-1;    // Ensure at least this many bits are hidden
+                                    // by range proof.  (Can set this target to
+                                    // less than FPPIntMax if we want to default
+                                    // to faster/smaller range proofs at the
+                                    // expense of some privacy.)
 
 class RangeProof {
 
@@ -194,7 +200,7 @@ class RangeProof {
      */
     static SignValue(value, blind, nonce /*, commitment*/) {
 
-        let RP = new RangeProof(3);
+        let RP = new RangeProof(5);
 
         RP.SetValue(value);
         RP.commitment = StealthZK.BlindCommit(blind, value);
@@ -203,6 +209,9 @@ class RangeProof {
                           " revealing " + RP.min_value +
                           " minimum amount and hiding " + RP.mantissabits +
                           " bits of precision.");
+        /***/ console.log("Range to be proven: (min: " + RP.min_value +
+                          ", (actual: " + RP.value + "), max: " +
+                          ((2**RP.mantissabits-1)*RP.scale + RP.min_value) + ")");
 
         RP.ComputeRadix4Arrays();   // Gets us this.secidx and this.commitvals
         RP.GenRand(nonce, blind);   // Computes blinds, nonces, and fake signatures
@@ -241,7 +250,7 @@ class RangeProof {
 
         this.min_value = this.value - (this.mantissaval * this.scale);
 
-        let max_bits = Math.floor(FPPIntMax/this.scale).toString(2).length;
+        let max_bits = Math.floor(RPPrivacyTarget/this.scale).toString(2).length;
         let min_bits = this.mantissaval.toString(2).length; // Hokey way to get bit length
         this.mantissabits = Math.max(max_bits,min_bits);    // (But works for 32+ bits)
         assert(this.mantissabits > 0, "No mantissa bits");  // <- Should never happen
