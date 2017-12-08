@@ -10,7 +10,7 @@ export const blockTradesAPIs = {
 };
 
 export const settingsAPIs = {
-    DEFAULT_WS_NODE: "wss://node.testnet.bitshares.eu",
+    DEFAULT_WS_NODE: "ws://185.208.208.147:11012",
     WS_NODE_LIST: [
 /*        {url: "wss://fake.automatic-selection.com", location: {translate: "settings.api_closest"}},
         {url: "ws://127.0.0.1:8090", location: "Locally hosted"},
@@ -28,7 +28,7 @@ export const settingsAPIs = {
         {url: "ws://185.208.208.147:11012", location: "Agorise (Faucet: http://185.208.208.147:5010)"},
         {url: "wss://node.testnet.bitshares.eu", location: "Public Testnet Server (Frankfurt, Germany)"}
     ],
-    DEFAULT_FAUCET: "https://testnet.bitshares.eu",
+    DEFAULT_FAUCET: "http://185.208.208.147:5010",
     FAUCET_LIST: [ // List apparently not supported for faucet... this key ignored
         {url: "https://testnet.bitshares.eu"},
         {url: "http://185.208.208.147:5010"}
