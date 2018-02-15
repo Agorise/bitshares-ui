@@ -24,6 +24,7 @@ import {Point, getCurveByName} from 'ecurve';
 const secp256k1 = getCurveByName('secp256k1');
 import {encode, decode}from 'bs58';
 import { hash } from "agorise-bitsharesjs/es/ecc";
+import {jssha256} from "js-sha256" //testing
 import assert from "assert";
 
 const {G, n} = secp256k1;
@@ -417,7 +418,7 @@ class RangeProof {
         }
         K_fin_bufs.push(this.borro_m);  // Also append proof message
         let e0_data = Buffer.concat(K_fin_bufs);
-        this.borro_e0 = hash.sha256(e0_data);
+        this.borro_e0 = jssha256(e0_data);
 
         /***/ console.log("...Got e0 value.");
 
@@ -472,7 +473,7 @@ class RangeProof {
         let full_msg = Buffer.concat([this.commitment, this.proof_header,
                                       Buffer.concat(this.ringcommits.slice(0,-1))]);
 
-        this.borro_m = hash.sha256(full_msg);
+        this.borro_m = jssha256(full_msg);
         return this.borro_m;
 
     }
@@ -493,7 +494,7 @@ class RangeProof {
         let ridx_buf = Buffer.from([0, 0, 0, ridx]);
         let eidx_buf = Buffer.from([0, 0, 0, eidx]);
         let data = Buffer.concat([Kprev, this.borro_m, ridx_buf, eidx_buf]);
-        return hash.sha256(data);
+        return jssha256(data);
 
     }
 
@@ -575,7 +576,7 @@ class RangeProof {
         let invalid = false;
 
         do {
-            this.rfc6979state = hash.sha256(this.rfc6979state);
+            this.rfc6979state = jssha256(this.rfc6979state);
             retval = (maskmsg) ? this.rfc6979state /*TODO*/ : this.rfc6979state;
             invalid = StealthZK.BlindOverflowOrZero(retval);
             assert(!(invalid && abort_on_invalid), "Can't skip overflow with masked message");
