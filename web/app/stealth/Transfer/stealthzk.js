@@ -23,8 +23,8 @@ import BigInteger from 'bigi';
 import {Point, getCurveByName} from 'ecurve';
 const secp256k1 = getCurveByName('secp256k1');
 import {encode, decode}from 'bs58';
-import { hash } from "agorise-bitsharesjs/es/ecc";
-import {jssha256} from "js-sha256" //testing
+import { hash } from "agorise-bitsharesjs/es/ecc";  // For hash.sha256()
+import {sha256 as jssha256} from "js-sha256"        // An alternate SHA256 lib
 import assert from "assert";
 
 const {G, n} = secp256k1;
@@ -40,6 +40,21 @@ const secp256k1altgen = {
 const G2 = Point.fromAffine(secp256k1,
                             BigInteger(secp256k1altgen.G2x,16),
                             BigInteger(secp256k1altgen.G2y,16));
+
+/**
+ *  SHA256 function for use in this library.  We wrap a sha256 from an existing
+ *  library.  We do this so that we can easily swap out the base lib for
+ *  optimization, and also so we can massage the input and output datatypes to
+ *  our liking.
+ *
+ *  input:  Expects a Buffer or Uint8Array. (Might be tolerant to other types.)
+ *  output: Buffer object.
+ */
+function zk_sha256(input) {
+    //return hash.sha256(input);                // 'hash' package (very slightly slower)
+    return Buffer.from(jssha256.array(input));  // 'js-sha256' package
+}
+
 
 /**
  *  Defines the Stealth_ZK class.  Reminder: NOT SECURE or CERTIFIED
@@ -160,7 +175,7 @@ const FPPIntMax = 2**48-1;  // Maximim precisely-representable integer in the
                             // 52-bit mantissa of a double-precision float with
                             // implied leading bit.
 
-const RPPrivacyTarget = 2**25-1;    // Ensure at least this many bits are hidden
+const RPPrivacyTarget = 2**28-1;    // Ensure at least this many bits are hidden
                                     // by range proof.  (Can set this target to
                                     // less than FPPIntMax if we want to default
                                     // to faster/smaller range proofs at the
@@ -201,6 +216,7 @@ class RangeProof {
      */
     static SignValue(value, blind, nonce /*, commitment*/) {
 
+        let timeStart = new Date();     // for profiling
         let RP = new RangeProof(5);
 
         RP.SetValue(value);
@@ -220,6 +236,8 @@ class RangeProof {
         RP.BorromeanSign();
         RP.Serialize();
 
+        let timeEnd = new Date;
+        /***/ console.log("Elapsed time " + ((timeEnd-timeStart)/1000) + " seconds.");
         /***/ console.log("RP Object so far:", RP);
 
         // return a Uint8Array (or maybe higher level object. ByteBuffer?)
@@ -418,7 +436,7 @@ class RangeProof {
         }
         K_fin_bufs.push(this.borro_m);  // Also append proof message
         let e0_data = Buffer.concat(K_fin_bufs);
-        this.borro_e0 = jssha256(e0_data);
+        this.borro_e0 = zk_sha256(e0_data);
 
         /***/ console.log("...Got e0 value.");
 
@@ -473,7 +491,7 @@ class RangeProof {
         let full_msg = Buffer.concat([this.commitment, this.proof_header,
                                       Buffer.concat(this.ringcommits.slice(0,-1))]);
 
-        this.borro_m = jssha256(full_msg);
+        this.borro_m = zk_sha256(full_msg);
         return this.borro_m;
 
     }
@@ -494,7 +512,7 @@ class RangeProof {
         let ridx_buf = Buffer.from([0, 0, 0, ridx]);
         let eidx_buf = Buffer.from([0, 0, 0, eidx]);
         let data = Buffer.concat([Kprev, this.borro_m, ridx_buf, eidx_buf]);
-        return jssha256(data);
+        return zk_sha256(data);
 
     }
 
@@ -576,7 +594,7 @@ class RangeProof {
         let invalid = false;
 
         do {
-            this.rfc6979state = jssha256(this.rfc6979state);
+            this.rfc6979state = zk_sha256(this.rfc6979state);
             retval = (maskmsg) ? this.rfc6979state /*TODO*/ : this.rfc6979state;
             invalid = StealthZK.BlindOverflowOrZero(retval);
             assert(!(invalid && abort_on_invalid), "Can't skip overflow with masked message");
