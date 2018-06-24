@@ -304,9 +304,6 @@ class Stealth_Transfer
      *  we don't .process_transaction().  This is because a second
      *  operation still needs to be added to the TX to "claim" the
      *  temp balance to a public account.  See Blind_to_Public().
-     *
-     *  TEMP CODE: At present, we spend ENTIRE receipt to single
-     *  output.  This will be fixed when we have range proofs.
      */
     Blind_to_Blind(to_temp_acct=false) {
 
