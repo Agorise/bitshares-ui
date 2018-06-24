@@ -198,19 +198,20 @@ class Stealth_Transfer
     }
 
     /**
-    *  Construct transaction to transfer a PUBLIC balance to BLIND
-    *  balance.
+    *  Construct (and broadcast) a transaction to transfer a PUBLIC balance
+    *  to a BLIND balance.
     *
     *  @return a blind_confirmation containing metadata about outputs and
-    *  the signed transaction ready-to-broadcast.
+    *  the signed transaction.
     *
     *  Patterned after wallet_api::transfer_to_blind() in wallet.cpp
     *
-    *  Note: the function in wallet.cpp assumes responsibility of
-    *  transmitting. I prefer to separate that. In final form, this
-    *  function will NOT transmit. The caller will receive a signed TX and
-    *  assume responsibility for transmitting.
-    *
+    *  Note: Ideally I would prefer to separate the responsibility of building
+    *  the transaction from broadcasting it. Eventually, this function will
+    *  NOT broadcast. The caller will receive a signed TX and assume the
+    *  responsibility for broadcasting. For now, however, we follow the model
+    *  model of wallet.cpp and broadcast the TX.  (This occurs implicitly in
+    *  the call to WalletDb.process_transaction().
     */
     Public_to_Blind() {
         /**/ console.log("PUB2BLIND: Public to Blind: from:", this.from.label,
@@ -218,7 +219,6 @@ class Stealth_Transfer
         let bop = new transfer_to_blind_op;     // The "op" that we will build
         let blindconf = new blind_confirmation; // This will be return object
                                                 // if no errors.
-        let blinding_factors = []; //(Defined but never used, why?)
         let total_amount = 0;
 
         // Loop over recipients (right now only support one)
@@ -232,7 +232,6 @@ class Stealth_Transfer
         let amount = this.amount;
         let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
         total_amount += amount;
-        blinding_factors = [blind_factor];      // push_back when loop
 
         let out = new blind_output;             // One output per recipient
         out.owner = {"weight_threshold":1,"account_auths":[],
@@ -273,22 +272,6 @@ class Stealth_Transfer
             blinding_factor: bop.blinding_factor,
             outputs: bop.outputs
         });
-        if (false) { // TESING SHUNT BLOCK
-            // Trying to manually generate TX so I can manually broadcast...
-            // The ones I manually generate tho always fail with "Missing
-            // Active Authority"
-            return Promise.all([tr.set_required_fees(),tr.finalize()]).then(()=>{
-                /***/ console.log ("Try'n catch a TX by the tail yo.");
-                /***/ console.log(tr.expiration);
-                tr.expiration+=600;
-                /***/ console.log(tr.expiration);
-                tr.add_signer(PrivateKey        // Try manually adding signing keys
-                   .fromWif("5H***"));
-                tr.sign();//
-                blindconf.trx = tr;
-                /***/ console.log(JSON.stringify(tr.serialize()));
-                return blindconf;});
-        }//END SHUNT - Normal behavior follows...
         return WalletDb.process_transaction(tr,null,true)
             .then(()=>{blindconf.trx = tr; return blindconf;})
             .catch((err)=>{
@@ -418,6 +401,9 @@ class Stealth_Transfer
 
         } // End loop over Recipients
 
+        // TODO: Sort bop.outputs by commitment bytetext so that observers
+        // can't discern recipient from change outputs.
+
         console.log("Tentative Receipts:  (TX not yet broadcast)");
         for (let i = 0; i < blindconf.output_meta.length; i++) {
             console.log("Receipt " + i + " (" + blindconf.output_meta[i].label
@@ -478,7 +464,7 @@ class Stealth_Transfer
 
         let input_memo = stage1.output_meta[0].decrypted_memo;
         let input_auth = stage1.output_meta[0].auth;
-              //^^ Need to search rather than assume position zero.
+              //^^ TODO: Need to search rather than assume position zero.
 
         let amount = input_memo.amount.amount - feeamount;
         let amountasset = {"amount":amount, "asset_id":this.asset.get("id")};
